@@ -15,8 +15,8 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-sqlalchemy = "^2.0.36"
-pydantic = "^2.10.4"
+sqlalchemy = "^2.0"
+pydantic = "^2.10"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "0.8.4"
@@ -43,13 +43,6 @@ ignore = [
     ]
 fixable = ["ALL"]
 unfixable = ["T20", "ERA001"]
-
-[tool.ruff.lint.per-file-ignores]
-"app/models/*" = ["RUF012"] # SQLAlchemy requires this to define schema
-"app/api/routes/*" = ["ANN201"] # FastAPI requires this to define sqlalchemy to pydantic
-
-[tool.ruff.lint.pyupgrade]
-keep-runtime-typing = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
