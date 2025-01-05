@@ -1,0 +1,60 @@
+[tool.poetry]
+name = "mixemy"
+version = "0.1.0"
+description = ""
+authors = ["Algernon Sampson <algiesampson@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+include = [{ path = "tests", format = "sdist" }]
+repository = "https://github.com/frostyfeet909/mixemy"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+sqlalchemy = "^2.0.36"
+pydantic = "^2.10.4"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "0.8.4"
+pyright = "1.1.391"
+pytest = "^8.3.4"
+pre-commit = "^4.0.1"
+
+[tool.pyright]
+include = ["src/mixemy/**/*.py"]
+typeCheckingMode = "strict"
+reportUnusedImport = "none"  # Handled by ruff
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff]
+include = ["src/mixemy/**/*.py", "tests/*.py"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "E501", "D", "A002", "ERA001", "T20", "FBT001", "FBT002",
+    "W191", "E111", "E114", "E117", "D206", "D300", "Q000", "Q001", "Q002", "Q003", "COM812", "COM819", "ISC001", "ISC002"  # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+    ]
+fixable = ["ALL"]
+unfixable = ["T20", "ERA001"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/models/*" = ["RUF012"] # SQLAlchemy requires this to define schema
+"app/api/routes/*" = ["ANN201"] # FastAPI requires this to define sqlalchemy to pydantic
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
