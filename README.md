@@ -1,5 +1,12 @@
 # Mixemy
 
+[![CI](https://github.com/frostyfeet909/mixemy/actions/workflows/ci.yml/badge.svg)](https://github.com/frostyfeet909/mixemy/actions/workflows/ci.yml)
+[![CD](https://github.com/frostyfeet909/mixemy/actions/workflows/cd.yml/badge.svg)](https://github.com/frostyfeet909/mixemy/actions/workflows/cd.yml)
+
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Checked with pyright](https://microsoft.github.io/pyright/img/pyright_badge.svg)](https://microsoft.github.io/pyright/)
+[![Packaged with Poetry](https://img.shields.io/badge/packaging-poetry-cyan.svg)](https://python-poetry.org/)
+
 **Mixemy** is a small library providing a set of mixins for [SQLAlchemy](https://www.sqlalchemy.org/) and [Pydantic](https://docs.pydantic.dev/) to simplify common CRUD operations, validation, and schema management.
 
 ## Features
