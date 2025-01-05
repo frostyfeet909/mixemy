@@ -5,7 +5,6 @@ from ._id_audit_output import IdAuditOutputSchema
 from ._id_output import IdOutputSchema
 from ._input import InputSchema
 
-__version__ = "0.1.0"
 __all__ = [
     "AuditOutputSchema",
     "BaseSchema",
