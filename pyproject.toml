@@ -9,8 +9,15 @@ include = [{ path = "tests", format = "sdist" }]
 repository = "https://github.com/frostyfeet909/mixemy"
 classifiers = [
     "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Database",
+    "Typing :: Typed"
 ]
 
 [tool.poetry.dependencies]
