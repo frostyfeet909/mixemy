@@ -32,9 +32,11 @@ class BaseSyncService(
         self.model = self.repository.model
         self.db_session = db_session
 
-    def create(self, object_in: CreateSchemaType) -> BaseModelType:
-        return self.repository.create(
-            db_session=self.db_session, db_object=self._to_model(schema=object_in)
+    def create(self, object_in: CreateSchemaType) -> OutputSchemaType:
+        return self._to_schema(
+            model=self.repository.create(
+                db_session=self.db_session, db_object=self._to_model(schema=object_in)
+            )
         )
 
     def read_multi(

@@ -32,9 +32,11 @@ class BaseAsyncService(
         self.model = self.repository.model
         self.db_session = db_session
 
-    async def create(self, object_in: CreateSchemaType) -> BaseModelType:
-        return await self.repository.create(
-            db_session=self.db_session, db_object=self._to_model(schema=object_in)
+    async def create(self, object_in: CreateSchemaType) -> OutputSchemaType:
+        return self._to_schema(
+            model=await self.repository.create(
+                db_session=self.db_session, db_object=self._to_model(schema=object_in)
+            )
         )
 
     async def read_multi(
