@@ -78,36 +78,36 @@ class ItemService(
     output_schema_type = ItemOutput
 
 # 5. Instantiate the service class.
-item_service = ItemService()
+item_service = ItemService(db_session=...)
 
 # 6. Example usage in a synchronous context:
-def example_usage(session: Session):
+def example_usage():
     test_one = ItemInput(value="test_one")
     test_two = ItemInput(value="test_two")
     test_three = ItemInput(value="test_one")
     test_one_update = ItemUpdate(value="test_one", nullable_value="test_one_updated")
 
     # Create items
-    item_one = item_service.create(db_session=session, object_in=test_one)
-    item_two = item_service.create(db_session=session, object_in=test_two)
-    item_service.create(db_session=session, object_in=test_three)
+    item_one = item_service.create(object_in=test_one)
+    item_two = item_service.create(object_in=test_two)
+    item_service.create(object_in=test_three)
 
     # Read items
-    item_one = item_service.read(db_session=session, id=item_one.id)
-    item_two = item_service.read(db_session=session, id=item_two.id)
+    item_one = item_service.read(id=item_one.id)
+    item_two = item_service.read(id=item_two.id)
 
     # Update an item
     item_one = item_service.update(
-        db_session=session, id=item_one.id, object_in=test_one_update
+        id=item_one.id, object_in=test_one_update
     )
 
     # Read multiple items by filter
     items = item_service.read_multi(
-        db_session=session, filters=ItemFilter(value=["test_one"])
+        filters=ItemFilter(value=["test_one"])
     )
 
     # Delete an item
-    item_service.delete(db_session=session, id=item_one.id)
+    item_service.delete(id=item_one.id)
 ```
 
 ### Explanation (Sync)
@@ -158,22 +158,22 @@ class ItemService(
     repository_type = ItemRepository
     output_schema_type = ItemOutput
 
-item_service = ItemService()
+item_service = ItemService(db_session=...)
 
-async def async_example_usage(async_session):
+async def async_example_usage():
     test_one = ItemInput(value="test_one")
     test_two = ItemInput(value="test_two")
 
     # Create items
-    item_one = await item_service.create(db_session=async_session, object_in=test_one)
-    item_two = await item_service.create(db_session=async_session, object_in=test_two)
+    item_one = await item_service.create(object_in=test_one)
+    item_two = await item_service.create(object_in=test_two)
 
     assert item_one.value == "test_one"
     assert item_two.value == "test_two"
 
     # Read items
-    item_one = await item_service.read(db_session=async_session, id=item_one.id)
-    item_two = await item_service.read(db_session=async_session, id=item_two.id)
+    item_one = await item_service.read(id=item_one.id)
+    item_two = await item_service.read(id=item_two.id)
 
     assert item_one is not None
     assert item_two is not None
@@ -182,26 +182,26 @@ async def async_example_usage(async_session):
 
     # Update an item (using the same schema here for simplicity)
     item_one = await item_service.update(
-        db_session=async_session, id=item_one.id, object_in=test_two
+        id=item_one.id, object_in=test_two
     )
 
     assert item_one.value == "test_two"
 
     # Delete an item
-    await item_service.delete(db_session=async_session, id=item_one.id)
-    item_one = await item_service.read(db_session=async_session, id=item_one.id)
+    await item_service.delete(id=item_one.id)
+    item_one = await item_service.read(id=item_one.id)
 
     # Verify it was deleted
     assert item_one is None
 
     # Check the second item is still intact
-    item_two = await item_service.read(db_session=async_session, id=item_two.id)
+    item_two = await item_service.read(id=item_two.id)
     assert item_two is not None
     assert item_two.value == "test_two"
 
     # Finally, delete the second item
-    await item_service.delete(db_session=async_session, id=item_two.id)
-    item_two = await item_service.read(db_session=async_session, id=item_two.id)
+    await item_service.delete(id=item_two.id)
+    item_two = await item_service.read(id=item_two.id)
     assert item_two is None
 ```
 

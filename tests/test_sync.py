@@ -37,7 +37,7 @@ def test_main(session: Session, init_db: None) -> None:
         repository_type = ItemRepository
         output_schema_type = ItemOutput
 
-    item_service = ItemService()
+    item_service = ItemService(db_session=session)
 
     test_one = ItemInput(value="test_one")
     test_two = ItemInput(value="test_two")
@@ -45,17 +45,17 @@ def test_main(session: Session, init_db: None) -> None:
     test_one_update = ItemUpdate(value="test_one", nullable_value="test_one_updated")
     test_one_id = None
 
-    item_one = item_service.create(db_session=session, object_in=test_one)
-    item_two = item_service.create(db_session=session, object_in=test_two)
-    item_service.create(db_session=session, object_in=test_three)
+    item_one = item_service.create(object_in=test_one)
+    item_two = item_service.create(object_in=test_two)
+    item_service.create(object_in=test_three)
 
     test_one_id = item_one.id
 
     assert item_one.value == "test_one"
     assert item_two.value == "test_two"
 
-    item_one = item_service.read(db_session=session, id=item_one.id)
-    item_two = item_service.read(db_session=session, id=item_two.id)
+    item_one = item_service.read(id=item_one.id)
+    item_two = item_service.read(id=item_two.id)
 
     assert item_one is not None
     assert item_two is not None
@@ -64,31 +64,27 @@ def test_main(session: Session, init_db: None) -> None:
     assert item_two.value == "test_two"
     assert item_two.nullable_value is None
 
-    item_one = item_service.update(
-        db_session=session, id=item_one.id, object_in=test_one_update
-    )
+    item_one = item_service.update(id=item_one.id, object_in=test_one_update)
 
     assert item_one.value == "test_one"
     assert item_one.nullable_value == "test_one_updated"
     assert item_one.id == test_one_id
 
-    items = item_service.read_multi(
-        db_session=session, filters=ItemFilter(value=["test_one"])
-    )
+    items = item_service.read_multi(filters=ItemFilter(value=["test_one"]))
 
     assert len(items) == 2
 
-    item_service.delete(db_session=session, id=item_one.id)
+    item_service.delete(id=item_one.id)
 
-    item_one = item_service.read(db_session=session, id=item_one.id)
-    item_two = item_service.read(db_session=session, id=item_two.id)
+    item_one = item_service.read(id=item_one.id)
+    item_two = item_service.read(id=item_two.id)
 
     assert item_one is None
     assert item_two is not None
     assert item_two.value == "test_two"
 
-    item_service.delete(db_session=session, id=item_two.id)
+    item_service.delete(id=item_two.id)
 
-    item_two = item_service.read(db_session=session, id=item_two.id)
+    item_two = item_service.read(id=item_two.id)
 
     assert item_two is None

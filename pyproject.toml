@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mixemy"
-version = "0.2.0"
+version = "0.3.0"
 description = "Mixins for sqlalchemy and pydantic"
 authors = ["Algernon Sampson <algiesampson@gmail.com>"]
 license = "MIT"
