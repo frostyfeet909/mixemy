@@ -7,13 +7,15 @@
 [![Checked with pyright](https://microsoft.github.io/pyright/img/pyright_badge.svg)](https://microsoft.github.io/pyright/)
 [![Packaged with Poetry](https://img.shields.io/badge/packaging-poetry-cyan.svg)](https://python-poetry.org/)
 
-**Mixemy** is a small library providing a set of mixins for [SQLAlchemy](https://www.sqlalchemy.org/) and [Pydantic](https://docs.pydantic.dev/) to simplify common CRUD operations, validation, and schema management.
+**Mixemy** is a small library providing a set of mixins for [SQLAlchemy](https://www.sqlalchemy.org/) and [Pydantic](https://docs.pydantic.dev/) to simplify common create/read/update/delete (CRUD) operations, validation, and schema management using a _service and repository_ pattern. **Both synchronous and asynchronous modes** are supported.
 
 ## Features
 
 - **Models**: Base classes and mixins that extend SQLAlchemy `declarative_base()` models with useful fields like IDs and timestamps.
-- **Schemas**: Pydantic schemas for input validation, serialization, and more.
-- **CRUD**: Generic CRUD classes that can be extended to handle common database interactions—create, read, update, and delete.
+- **Schemas**: Pydantic schemas for input validation, serialization, filtering, and more.
+- **Repositories**: Classes that handle data persistence and database interactions, such as retrieving or storing model objects.
+- **Services**: High-level classes that orchestrate CRUD operations, input validation, and output transformation (using repositories and schemas).
+- **Async or Sync**: Out of the box, Mixemy offers both synchronous and asynchronous repositories/services.
 
 ## Installation
 
@@ -27,51 +29,204 @@ pip install mixemy
 poetry add mixemy
 ```
 
-## Quick Start
+## Quick Start (Sync Example)
 
-Below is a minimal example demonstrating how to use `mixemy` to create a SQLAlchemy model, corresponding Pydantic schemas, and a CRUD class:
+Below is a minimal synchronous example demonstrating how to use **Mixemy** to create:
+
+- A SQLAlchemy model,
+- Pydantic schemas for input, update, filter, and output, 
+- A repository class for database operations,
+- A service class that orchestrates create/read/update/delete operations.
+
+```python
+from sqlalchemy.orm import Mapped, mapped_column, Session
+from sqlalchemy import String
+
+from mixemy import models, repositories, schemas, services
+
+# 1. Define a SQLAlchemy model with default fields (e.g., id, created_at, updated_at).
+class ItemModel(models.IdAuditModel):
+    __table_args__ = {"extend_existing": True}  # noqa: RUF012
+    value: Mapped[str] = mapped_column(String)
+    nullable_value: Mapped[str | None] = mapped_column(String, nullable=True)
+
+# 2. Define Pydantic schemas for input, updates, filtering, and output.
+class ItemInput(schemas.InputSchema):
+    value: str
+
+class ItemUpdate(ItemInput):
+    nullable_value: str | None
+
+class ItemFilter(schemas.InputSchema):
+    value: list[str]
+
+class ItemOutput(schemas.IdAuditOutputSchema):
+    value: str
+    nullable_value: str | None
+
+# 3. Define a repository for database operations.
+class ItemRepository(repositories.IdAuditSyncRepository[ItemModel]):
+    model_type = ItemModel
+
+# 4. Define a service that uses the repository and schemas to provide CRUD operations.
+class ItemService(
+    services.IdAuditSyncService[
+        ItemModel, ItemInput, ItemUpdate, ItemFilter, ItemOutput
+    ]
+):
+    repository_type = ItemRepository
+    output_schema_type = ItemOutput
+
+# 5. Instantiate the service class.
+item_service = ItemService()
+
+# 6. Example usage in a synchronous context:
+def example_usage(session: Session):
+    test_one = ItemInput(value="test_one")
+    test_two = ItemInput(value="test_two")
+    test_three = ItemInput(value="test_one")
+    test_one_update = ItemUpdate(value="test_one", nullable_value="test_one_updated")
+
+    # Create items
+    item_one = item_service.create(db_session=session, object_in=test_one)
+    item_two = item_service.create(db_session=session, object_in=test_two)
+    item_service.create(db_session=session, object_in=test_three)
+
+    # Read items
+    item_one = item_service.read(db_session=session, id=item_one.id)
+    item_two = item_service.read(db_session=session, id=item_two.id)
+
+    # Update an item
+    item_one = item_service.update(
+        db_session=session, id=item_one.id, object_in=test_one_update
+    )
+
+    # Read multiple items by filter
+    items = item_service.read_multi(
+        db_session=session, filters=ItemFilter(value=["test_one"])
+    )
+
+    # Delete an item
+    item_service.delete(db_session=session, id=item_one.id)
+```
+
+### Explanation (Sync)
+
+- **`ItemModel`**  
+  Inherits from `models.IdAuditModel`, which provides common columns such as `id`, `created_at`, and `updated_at`. We add our own `value` and an optional `nullable_value`.
+
+- **Pydantic Schemas**  
+  - `ItemInput` for creating an item,  
+  - `ItemUpdate` for updating existing items,  
+  - `ItemFilter` for filtering when reading multiple items,  
+  - `ItemOutput` for returning data (e.g., in a response).
+
+- **`ItemRepository`**  
+  Extends `repositories.IdAuditSyncRepository`, which handles database interactions for the given model.
+
+- **`ItemService`**  
+  Extends `services.IdAuditSyncService`, which implements the common operations (`create`, `read`, `update`, `delete`) using the repository. You can override these methods if you need custom behavior.
+
+## Asynchronous Example
+
+If you prefer to work with asynchronous database sessions (e.g., using `async_session`), Mixemy provides **async repositories** and **async services**:
 
 ```python
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String
 
-from mixemy import crud, models, schemas
+from mixemy import models, repositories, schemas, services
 
-# Define a SQLAlchemy model with some default fields (e.g., id, created_at, updated_at)
-class ItemModel(models.IdAuditModel):
+class AsyncItemModel(models.IdAuditModel):
+    __table_args__ = {"extend_existing": True}  # noqa: RUF012
     value: Mapped[str] = mapped_column(String)
 
-# Define Pydantic schemas for input and updates
 class ItemInput(schemas.InputSchema):
     value: str
 
-class ItemUpdate(schemas.InputSchema):
+class ItemOutput(schemas.IdAuditOutputSchema):
     value: str
 
-# Extend the generic CRUD class to specify the model and schemas
-class ItemCRUD(crud.IdAuditCRUD[ItemModel, ItemInput, ItemUpdate]):
-    pass
+class ItemRepository(repositories.IdAuditAsyncRepository[AsyncItemModel]):
+    model_type = AsyncItemModel
 
-# Instantiate the CRUD class with the model
-item_crud = ItemCRUD(ItemModel)
+class ItemService(
+    services.IdAuditAsyncService[
+        AsyncItemModel, ItemInput, ItemInput, ItemInput, ItemOutput
+    ]
+):
+    repository_type = ItemRepository
+    output_schema_type = ItemOutput
+
+item_service = ItemService()
+
+async def async_example_usage(async_session):
+    test_one = ItemInput(value="test_one")
+    test_two = ItemInput(value="test_two")
+
+    # Create items
+    item_one = await item_service.create(db_session=async_session, object_in=test_one)
+    item_two = await item_service.create(db_session=async_session, object_in=test_two)
+
+    assert item_one.value == "test_one"
+    assert item_two.value == "test_two"
+
+    # Read items
+    item_one = await item_service.read(db_session=async_session, id=item_one.id)
+    item_two = await item_service.read(db_session=async_session, id=item_two.id)
+
+    assert item_one is not None
+    assert item_two is not None
+    assert item_one.value == "test_one"
+    assert item_two.value == "test_two"
+
+    # Update an item (using the same schema here for simplicity)
+    item_one = await item_service.update(
+        db_session=async_session, id=item_one.id, object_in=test_two
+    )
+
+    assert item_one.value == "test_two"
+
+    # Delete an item
+    await item_service.delete(db_session=async_session, id=item_one.id)
+    item_one = await item_service.read(db_session=async_session, id=item_one.id)
+
+    # Verify it was deleted
+    assert item_one is None
+
+    # Check the second item is still intact
+    item_two = await item_service.read(db_session=async_session, id=item_two.id)
+    assert item_two is not None
+    assert item_two.value == "test_two"
+
+    # Finally, delete the second item
+    await item_service.delete(db_session=async_session, id=item_two.id)
+    item_two = await item_service.read(db_session=async_session, id=item_two.id)
+    assert item_two is None
 ```
 
-### Explanation
+### Explanation (Async)
 
-- **`ItemModel`**  
-  Inherits from `models.IdAuditModel`, which provides default columns such as `id`, `created_at`, and `updated_at`. We add our own `value` field as a `String`.
+- **`AsyncItemModel`**  
+  Same as a typical SQLAlchemy model but used in conjunction with async sessions.
 
-- **`ItemInput`** & **`ItemUpdate`**  
-  These are Pydantic schemas that extend `schemas.InputSchema`. Use these for type-safe request inputs in create and update operations.
+- **Pydantic Schemas**  
+  Adjusted as needed for create and output. You can have distinct schemas for update/filter, too.
 
-- **`ItemCRUD`**  
-  Extends `crud.IdAuditCRUD`, which already implements generic CRUD operations (like `create`, `read`, `update`, `delete`) for our model and schemas. You can override these methods if you need custom behavior.
+- **`ItemRepository`**  
+  Extends `repositories.IdAuditAsyncRepository`, which is the async variant for database interactions.
+
+- **`ItemService`**  
+  Extends `services.IdAuditAsyncService`, which implements the common async operations (`create`, `read`, `update`, `delete`) using the async repository.  
+
+With these async classes, you can integrate Mixemy into your async Python frameworks like **FastAPI** or **Quart** seamlessly.
 
 ## Why Use Mixemy?
 
 - **Speed up development** by reducing boilerplate for common operations.
-- **Stay type-safe** with Pydantic schemas and generics in CRUD classes.
-- **Extensible**—override base classes or methods to customize or add new functionality.
+- **Stay type-safe** with Pydantic schemas and typed repositories/services.
+- **Choose sync or async** to fit your application architecture.
+- **Extensible**—override or extend base repositories and services to customize or add new functionality.
 - **Built for maintainability** with consistent code structure and naming.
 
 ## License
@@ -86,6 +241,19 @@ Contributions are welcome! Please open an issue or submit a pull request on [Git
 2. Create a new branch for your feature or bugfix.
 3. Commit your changes.
 4. Push to your branch and open a pull request.
+
+### CI/CD
+
+This project uses GitHub Actions for continuous integration (CI) and continuous deployment (CD). The CI workflow runs tests, linters, and type checkers on every push to the main branch.
+
+To run this locally use the following command:
+
+```bash
+poetry run install pre-commit
+poetry run pre-commit run --all-files
+```
+
+You will need to have [Docker](https://www.docker.com/) installed to run the CI workflow locally.
 
 ---
 
