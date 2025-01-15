@@ -25,9 +25,16 @@ def serialize_secretstr(
 ) -> None: ...
 
 
+@overload
 def serialize_secretstr(
     data: SecretStr | str | None,
-    convert_secret: Callable[[str], str | None] | Callable[[str], str] | None,
+    convert_secret: Callable[[str], str | None] | Callable[[str], str] | None = None,
+) -> str | None: ...
+
+
+def serialize_secretstr(
+    data: SecretStr | str | None,
+    convert_secret: Callable[[str], str | None] | Callable[[str], str] | None = None,
 ) -> str | None:
     if data is None:
         return None

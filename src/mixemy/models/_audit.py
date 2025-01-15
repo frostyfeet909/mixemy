@@ -17,5 +17,5 @@ class AuditModel(BaseModel):
         DateTime(timezone=True), onupdate=func.now(), nullable=True
     )
 
-
-print("hi")
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} created_at={self.created_at} updated_at={self.updated_at}>"
