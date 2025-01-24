@@ -7,8 +7,12 @@ TO_MODEL = TypeVar("TO_MODEL", bound=BaseModel)
 TO_SCHEMA = TypeVar("TO_SCHEMA", bound=BaseSchema)
 
 
-def unpack_schema(schema: BaseSchema) -> dict[str, Any]:
-    return schema.model_dump(exclude_unset=True)
+def unpack_schema(
+    schema: BaseSchema,
+    exclude_unset: bool = True,
+    exclude: set[str] | None = None,
+) -> dict[str, Any]:
+    return schema.model_dump(exclude_unset=exclude_unset, exclude=exclude)
 
 
 def to_model(model: type[TO_MODEL], schema: BaseSchema) -> TO_MODEL:

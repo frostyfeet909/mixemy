@@ -4,26 +4,24 @@ from typing import Any, override
 from sqlalchemy import Select, asc, desc
 
 from mixemy.repositories._base._base import BaseRepository
+from mixemy.schemas import InputSchema
 from mixemy.schemas.paginations import AuditPaginationFilter, OrderDirection
 from mixemy.types import (
     AuditModelType,
-    PaginationSchemaType,
 )
 
 
 class AuditRepository(BaseRepository[AuditModelType], ABC):
     @override
-    @staticmethod
     def _add_after_filter(
-        statement: Select[Any], filter: PaginationSchemaType | None
+        self, statement: Select[Any], filters: InputSchema | None
     ) -> Select[Any]:
-        if filter is not None:
-            statement = statement.offset(filter.offset).limit(filter.limit)
-        if isinstance(filter, AuditPaginationFilter):
-            match filter.order_direction:
+        statement = super()._add_after_filter(statement=statement, filters=filters)
+        if isinstance(filters, AuditPaginationFilter):
+            match filters.order_direction:
                 case OrderDirection.ASC:
-                    statement = statement.order_by(asc(filter.order_by))
+                    statement = statement.order_by(asc(filters.order_by))
                 case OrderDirection.DESC:
-                    statement = statement.order_by(desc(filter.order_by))
+                    statement = statement.order_by(desc(filters.order_by))
 
         return statement
