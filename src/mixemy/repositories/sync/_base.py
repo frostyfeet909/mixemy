@@ -9,7 +9,6 @@ from mixemy.repositories._base import BaseRepository
 from mixemy.schemas import InputSchema
 from mixemy.types import (
     BaseModelType,
-    PaginationSchemaType,
 )
 
 
@@ -20,17 +19,11 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
     def read_multi(
         self,
         db_session: Session,
-        after_filter: PaginationSchemaType | None = None,
-        before_filter: InputSchema | None = None,
+        filters: InputSchema | None = None,
     ) -> Sequence[BaseModelType]:
         return self._execute_returning_all(
             db_session=db_session,
-            statement=self._add_after_filter(
-                statement=self._add_before_filter(
-                    statement=select(self.model), filter=before_filter
-                ),
-                filter=after_filter,
-            ),
+            statement=self._add_filters(statement=None, filters=filters),
         )
 
     def update(
@@ -54,7 +47,7 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
             db_session=db_session,
             statement=self._add_before_filter(
                 statement=select(func.count()).select_from(self.model),
-                filter=before_filter,
+                filters=before_filter,
             ),
         )
 

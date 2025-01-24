@@ -9,7 +9,6 @@ from mixemy.types import (
     CreateSchemaType,
     FilterSchemaType,
     OutputSchemaType,
-    PaginationSchemaType,
     UpdateSchemaType,
 )
 
@@ -42,13 +41,11 @@ class BaseAsyncService(
     async def read_multi(
         self,
         filters: FilterSchemaType | None = None,
-        pagination: PaginationSchemaType | None = None,
     ) -> list[OutputSchemaType]:
         return [
             self._to_schema(model=model)
             for model in await self.repository.read_multi(
                 db_session=self.db_session,
-                before_filter=filters,
-                after_filter=pagination,
+                filters=filters,
             )
         ]
