@@ -24,10 +24,6 @@ classifiers = [
 python = "^3.12"
 sqlalchemy = {version = "^2.0", extras = ["asyncio"]}
 pydantic = "^2.10"
-fastapi = {version = "^0.115", optional = true}
-
-[tool.poetry.extras]
-fastapi = ["fastapi"]
 
 [tool.poetry.group.dev.dependencies]
 ruff = "0.9.1"
