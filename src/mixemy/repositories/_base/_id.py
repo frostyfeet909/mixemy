@@ -7,4 +7,4 @@ from mixemy.types import (
 
 
 class IdRepository(BaseRepository[IdModelType], ABC):
-    pass
+    id_attribute = "id"

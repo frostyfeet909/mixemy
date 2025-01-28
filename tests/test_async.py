@@ -52,6 +52,7 @@ async def test_main(async_session: AsyncSession, init_db: None) -> None:
 
     item_one = await item_service.update(id=item_one.id, object_in=test_two)
 
+    assert item_one is not None
     assert item_one.value == "test_two"
 
     await item_service.delete(id=item_one.id)

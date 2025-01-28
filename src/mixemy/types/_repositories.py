@@ -1,5 +1,4 @@
-from typing import Literal
+from typing import Any, TypeVar
 
-type ReturnOrRaiseType = Literal[
-    "DONT_RETURN_OR_RAISE", "ONLY_RETURN", "RETURN_AND_RAISE"
-]
+SelectT = TypeVar("SelectT", bound=tuple[Any, ...])
+ResultT = TypeVar("ResultT", bound=Any)
