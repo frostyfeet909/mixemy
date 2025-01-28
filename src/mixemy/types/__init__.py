@@ -1,6 +1,6 @@
 from ._id import ID, PASSWORD_HASH, PASSWORD_INPUT
 from ._models import AuditModelType, BaseModelType, IdAuditModelType, IdModelType
-from ._repositories import ReturnOrRaiseType
+from ._repositories import ResultT, SelectT
 from ._schemas import (
     AuditPaginationSchemaType,
     CreateSchemaType,
@@ -24,7 +24,8 @@ __all__ = [
     "IdModelType",
     "OutputSchemaType",
     "PaginationSchemaType",
-    "ReturnOrRaiseType",
+    "ResultT",
+    "SelectT",
     "SessionType",
     "UpdateSchemaType",
 ]

@@ -66,11 +66,12 @@ def test_main(session: Session, init_db: None) -> None:
 
     item_one = item_service.update(id=item_one.id, object_in=test_one_update)
 
+    assert item_one is not None
     assert item_one.value == "test_one"
     assert item_one.nullable_value == "test_one_updated"
     assert item_one.id == test_one_id
 
-    items = item_service.read_multi(filters=ItemFilter(value=["test_one"]))
+    items = item_service.read_multiple(filters=ItemFilter(value=["test_one"]))
 
     assert len(items) == 2
 
