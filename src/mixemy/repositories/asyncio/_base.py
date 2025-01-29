@@ -40,6 +40,7 @@ class BaseAsyncRepository(BaseRepository[BaseModelType], ABC):
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
         auto_expunge: bool | None = None,
+        auto_commit: bool | None = False,
     ) -> BaseModelType | None:
         return await self._get(
             db_session=db_session,
@@ -47,6 +48,7 @@ class BaseAsyncRepository(BaseRepository[BaseModelType], ABC):
             loader_options=loader_options,
             execution_options=execution_options,
             auto_expunge=auto_expunge,
+            auto_commit=auto_commit,
         )
 
     async def read_multiple(
@@ -56,9 +58,8 @@ class BaseAsyncRepository(BaseRepository[BaseModelType], ABC):
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
-        auto_commit: bool | None = None,
+        auto_commit: bool | None = False,
         auto_expunge: bool | None = None,
-        auto_refresh: bool | None = None,
     ) -> Sequence[BaseModelType]:
         statement = select(self.model)
         statement = self._add_filters(statement=statement, filters=filters)
@@ -70,7 +71,7 @@ class BaseAsyncRepository(BaseRepository[BaseModelType], ABC):
             execution_options=execution_options,
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
-            auto_refresh=auto_refresh,
+            auto_refresh=False,
         )
 
     async def update(
@@ -170,6 +171,7 @@ class BaseAsyncRepository(BaseRepository[BaseModelType], ABC):
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
+        auto_commit: bool | None = False,
     ) -> int:
         statement = select(func.count()).select_from(self.model)
         statement = self._add_filters(statement=statement, filters=filters)
@@ -178,7 +180,7 @@ class BaseAsyncRepository(BaseRepository[BaseModelType], ABC):
             statement=statement,
             loader_options=loader_options,
             execution_options=execution_options,
-            auto_commit=False,
+            auto_commit=auto_commit,
             auto_expunge=False,
             auto_refresh=False,
         )
@@ -253,6 +255,7 @@ class BaseAsyncRepository(BaseRepository[BaseModelType], ABC):
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
         auto_expunge: bool | None,
+        auto_commit: bool | None = False,
     ) -> BaseModelType | None:
         current_loader_options = (
             loader_options if loader_options is not None else self.loader_options
@@ -271,7 +274,7 @@ class BaseAsyncRepository(BaseRepository[BaseModelType], ABC):
         await self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_object,
-            auto_commit=False,
+            auto_commit=auto_commit,
             auto_expunge=auto_expunge,
             auto_refresh=False,
         )
