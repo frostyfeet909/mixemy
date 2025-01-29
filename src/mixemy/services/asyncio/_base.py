@@ -60,6 +60,7 @@ class BaseAsyncService(
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
         auto_expunge: bool | None = None,
+        auto_commit: bool | None = None,
     ) -> OutputSchemaType | None:
         return (
             self._to_schema(model=model)
@@ -70,6 +71,7 @@ class BaseAsyncService(
                     loader_options=loader_options,
                     execution_options=execution_options,
                     auto_expunge=auto_expunge,
+                    auto_commit=auto_commit,
                 )
             )
             else None
@@ -82,7 +84,6 @@ class BaseAsyncService(
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
         auto_expunge: bool | None = None,
-        auto_refresh: bool | None = None,
         auto_commit: bool | None = None,
     ) -> list[OutputSchemaType]:
         return [
@@ -93,7 +94,6 @@ class BaseAsyncService(
                 loader_options=loader_options,
                 execution_options=execution_options,
                 auto_expunge=auto_expunge,
-                auto_refresh=auto_refresh,
                 auto_commit=auto_commit,
             )
         ]
