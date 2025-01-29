@@ -41,6 +41,7 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
         execution_options: dict[str, Any] | None = None,
         auto_expunge: bool | None = None,
         auto_commit: bool | None = False,
+        with_for_update: bool = False,
     ) -> BaseModelType | None:
         return self._get(
             db_session=db_session,
@@ -49,6 +50,7 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
             execution_options=execution_options,
             auto_expunge=auto_expunge,
             auto_commit=auto_commit,
+            with_for_update=with_for_update,
         )
 
     def read_multiple(
@@ -60,6 +62,7 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
         execution_options: dict[str, Any] | None = None,
         auto_commit: bool | None = False,
         auto_expunge: bool | None = None,
+        with_for_update: bool = False,
     ) -> Sequence[BaseModelType]:
         statement = select(self.model)
         statement = self._add_filters(statement=statement, filters=filters)
@@ -72,6 +75,7 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
             auto_refresh=False,
+            with_for_update=with_for_update,
         )
 
     def update(
@@ -85,13 +89,16 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
+        with_for_update: bool = True,
     ) -> BaseModelType | None:
         db_object = self._get(
             db_session=db_session,
             id=id,
             loader_options=loader_options,
             execution_options=execution_options,
-            auto_expunge=auto_expunge,
+            auto_expunge=False,
+            with_for_update=with_for_update,
+            auto_commit=False,
         )
         if db_object is not None:
             return self.update_db_object(
@@ -102,6 +109,14 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
                 auto_expunge=auto_expunge,
                 auto_refresh=auto_refresh,
             )
+
+        self._maybe_commit_or_flush_or_refresh_or_expunge(
+            db_session=db_session,
+            db_object=db_object,
+            auto_commit=auto_commit,
+            auto_expunge=auto_expunge,
+            auto_refresh=auto_refresh,
+        )
 
         return db_object
 
@@ -133,13 +148,16 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
         execution_options: dict[str, Any] | None = None,
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
+        with_for_update: bool = False,
     ) -> None:
         db_object = self._get(
             db_session=db_session,
             id=id,
             loader_options=loader_options,
             execution_options=execution_options,
-            auto_expunge=auto_expunge,
+            auto_expunge=False,
+            auto_commit=False,
+            with_for_update=with_for_update,
         )
         if db_object is not None:
             self.delete_db_object(
@@ -147,6 +165,14 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
                 db_object=db_object,
                 auto_commit=auto_commit,
                 auto_expunge=auto_expunge,
+            )
+        else:
+            self._maybe_commit_or_flush_or_refresh_or_expunge(
+                db_session=db_session,
+                db_object=db_object,
+                auto_commit=auto_commit,
+                auto_expunge=auto_expunge,
+                auto_refresh=False,
             )
 
     def delete_db_object(
@@ -183,6 +209,7 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
             auto_commit=auto_commit,
             auto_expunge=False,
             auto_refresh=False,
+            with_for_update=False,
         )
 
     def _maybe_commit_or_flush_or_refresh_or_expunge(
@@ -255,6 +282,7 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
         auto_expunge: bool | None,
+        with_for_update: bool,
         auto_commit: bool | None = False,
     ) -> BaseModelType | None:
         current_loader_options = (
@@ -270,6 +298,7 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
             id,
             options=current_loader_options,
             execution_options=current_execution_options or EMPTY_DICT,
+            with_for_update=with_for_update,
         )
         self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
@@ -291,11 +320,13 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
         auto_commit: bool | None,
         auto_expunge: bool | None,
         auto_refresh: bool | None,
+        with_for_update: bool,
     ) -> Sequence[Any]:
         statement = self._prepare_statement(
             statement=statement,
             loader_options=loader_options,
             execution_options=execution_options,
+            with_for_update=with_for_update,
         )
         res = db_session.execute(statement)
         db_objects: Sequence[Any] = res.scalars().all()
@@ -318,11 +349,13 @@ class BaseSyncRepository(BaseRepository[BaseModelType], ABC):
         auto_commit: bool | None,
         auto_expunge: bool | None,
         auto_refresh: bool | None,
+        with_for_update: bool,
     ) -> Any:
         statement = self._prepare_statement(
             statement=statement,
             loader_options=loader_options,
             execution_options=execution_options,
+            with_for_update=with_for_update,
         )
         res = db_session.execute(statement)
         db_object = res.scalar_one()

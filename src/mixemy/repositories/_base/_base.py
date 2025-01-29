@@ -87,7 +87,7 @@ class BaseRepository(Generic[BaseModelType], ABC):
         *,
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
-        with_for_update: bool = False,
+        with_for_update: bool,
     ) -> Select[SelectT]:
         current_loader_options = (
             loader_options if loader_options is not None else self.loader_options
