@@ -20,12 +20,12 @@ async def test_main(async_session: AsyncSession, init_db: None) -> None:
     class ItemOutput(schemas.IdAuditOutputSchema):
         value: str
 
-    class ItemRepository(repositories.IdAuditAsyncRepository[AsyncItemModel]):
+    class ItemRepository(repositories.BaseAsyncRepository[AsyncItemModel]):
         model_type = AsyncItemModel
 
     class ItemService(
-        services.IdAuditAsyncService[
-            AsyncItemModel, ItemInput, ItemInput, ItemInput, ItemOutput
+        services.BaseAsyncService[
+            AsyncItemModel, ItemRepository, ItemInput, ItemInput, ItemInput, ItemOutput
         ]
     ):
         repository_type = ItemRepository

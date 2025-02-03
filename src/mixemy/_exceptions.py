@@ -1,15 +1,8 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from mixemy.repositories import BaseRepository
-    from mixemy.services import BaseService
-    from mixemy.types import (
-        BaseModelType,
-        CreateSchemaType,
-        FilterSchemaType,
-        OutputSchemaType,
-        UpdateSchemaType,
-    )
+    from mixemy.repositories import BaseAsyncRepository, BaseSyncRepository
+    from mixemy.services import BaseAsyncService, BaseSyncService
 
 
 class MixemyError(Exception):
@@ -37,7 +30,7 @@ class MixemySetupError(MixemyError):
 class MixemyRepositorySetupError(MixemySetupError):
     def __init__(
         self,
-        repository: "BaseRepository[BaseModelType]",
+        repository: "BaseSyncRepository[Any] | BaseAsyncRepository[Any]",
         undefined_field: str,
         message: str | None = None,
     ) -> None:
@@ -53,7 +46,7 @@ class MixemyRepositorySetupError(MixemySetupError):
 class MixemyServiceSetupError(MixemySetupError):
     def __init__(
         self,
-        service: "BaseService[BaseModelType, CreateSchemaType, UpdateSchemaType, FilterSchemaType, OutputSchemaType]",
+        service: "BaseSyncService[Any, Any, Any, Any, Any, Any] | BaseAsyncService[Any, Any, Any, Any, Any, Any]",
         undefined_field: str,
         message: str | None = None,
     ) -> None:

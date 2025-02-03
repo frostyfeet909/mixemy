@@ -4,16 +4,17 @@ from typing import TYPE_CHECKING, TypeVar
 # from mixemy.schemas.paginations import AuditPaginationFilter, PaginationFilter
 
 if TYPE_CHECKING:
-    from mixemy.schemas import InputSchema, OutputSchema
+    from mixemy.schemas import BaseSchema, InputSchema, OutputSchema
     from mixemy.schemas.paginations import AuditPaginationFilter, PaginationFilter
 
-CreateSchemaType = TypeVar("CreateSchemaType", bound="InputSchema")
-UpdateSchemaType = TypeVar("UpdateSchemaType", bound="InputSchema")
-OutputSchemaType = TypeVar("OutputSchemaType", bound="OutputSchema")
+BaseSchemaT = TypeVar("BaseSchemaT", bound="BaseSchema")
+CreateSchemaT = TypeVar("CreateSchemaT", bound="InputSchema")
+UpdateSchemaT = TypeVar("UpdateSchemaT", bound="InputSchema")
+OutputSchemaT = TypeVar("OutputSchemaT", bound="OutputSchema")
 
-FilterSchemaType = TypeVar("FilterSchemaType", bound="InputSchema")
+FilterSchemaT = TypeVar("FilterSchemaT", bound="InputSchema")
 
-# PaginationSchemaType = TypeVar("PaginationSchemaType", bound=PaginationFilter)
-# type FilterSchemaType = "InputSchema"
-type PaginationSchemaType = "PaginationFilter"
-type AuditPaginationSchemaType = "AuditPaginationFilter"
+# PaginationSchemaT = TypeVar("PaginationSchemaT", bound=PaginationFilter)
+# type FilterSchemaT = "InputSchema"
+type PaginationSchemaT = "PaginationFilter"
+type AuditPaginationSchemaT = "AuditPaginationFilter"

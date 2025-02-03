@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, TypeVar
 if TYPE_CHECKING:
     from mixemy.models import AuditModel, BaseModel, IdAuditModel, IdModel
 
-BaseModelType = TypeVar("BaseModelType", bound="BaseModel")
-IdModelType = TypeVar("IdModelType", bound="IdModel")
-AuditModelType = TypeVar("AuditModelType", bound="AuditModel")
-IdAuditModelType = TypeVar("IdAuditModelType", bound="IdAuditModel")
+BaseModelT = TypeVar("BaseModelT", bound="BaseModel")
+IdModelT = TypeVar("IdModelT", bound="IdModel")
+AuditModelT = TypeVar("AuditModelT", bound="AuditModel")
+IdAuditModelT = TypeVar("IdAuditModelT", bound="IdAuditModel")
