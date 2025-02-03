@@ -26,12 +26,12 @@ def test_main(session: Session, init_db: None) -> None:
         value: str
         nullable_value: str | None
 
-    class ItemRepository(repositories.IdAuditSyncRepository[ItemModel]):
+    class ItemRepository(repositories.BaseSyncRepository[ItemModel]):
         model_type = ItemModel
 
     class ItemService(
-        services.IdAuditSyncService[
-            ItemModel, ItemInput, ItemUpdate, ItemFilter, ItemOutput
+        services.BaseSyncService[
+            ItemModel, ItemRepository, ItemInput, ItemUpdate, ItemFilter, ItemOutput
         ]
     ):
         repository_type = ItemRepository
