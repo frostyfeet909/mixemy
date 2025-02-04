@@ -1,17 +1,20 @@
+from typing import TYPE_CHECKING
+
 import pytest
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, Session, mapped_column
+from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from mixemy.models import IdAuditModel
 
 
 @pytest.mark.database
 @pytest.mark.integration
-def test_main(session: Session, init_db: None) -> None:
-    from mixemy import models, repositories, schemas, services
+def test_main(
+    session: Session, init_db: None, item_model: "type[IdAuditModel]"
+) -> None:
+    from mixemy import repositories, schemas, services
 
-    class ItemModel(models.IdAuditModel):
-        __table_args__ = {"extend_existing": True}  # noqa: RUF012
-        value: Mapped[str] = mapped_column(String)
-        nullable_value: Mapped[str | None] = mapped_column(String, nullable=True)
+    ItemModel = item_model
 
     class ItemInput(schemas.InputSchema):
         value: str
@@ -89,3 +92,61 @@ def test_main(session: Session, init_db: None) -> None:
     item_two = item_service.read(id=item_two.id)
 
     assert item_two is None
+
+
+def test_recursive_model(
+    session: Session,
+    init_db: None,
+    recursive_item_model: "type[IdAuditModel]",
+    sub_item_model: "type[IdAuditModel]",
+) -> None:
+    from mixemy import repositories, schemas, services
+
+    RecursiveItemModel = recursive_item_model
+
+    class SubItemInput(schemas.InputSchema):
+        value: str
+
+    class SubItemOutput(schemas.IdAuditOutputSchema):
+        value: str
+
+    class ItemInput(schemas.InputSchema):
+        sub_items: list[SubItemInput]
+
+    class ItemOutput(schemas.IdAuditOutputSchema):
+        sub_items: list[SubItemOutput]
+
+    class ItemRepository(repositories.BaseSyncRepository[RecursiveItemModel]):
+        model_type = RecursiveItemModel
+
+    class ItemService(
+        services.BaseSyncService[
+            RecursiveItemModel,
+            ItemRepository,
+            ItemInput,
+            ItemInput,
+            ItemInput,
+            ItemOutput,
+        ]
+    ):
+        repository_type = ItemRepository
+        output_schema_type = ItemOutput
+        default_model_recursive_model_conversion = True
+
+    item_service = ItemService(db_session=session)
+
+    test_item = ItemInput(
+        sub_items=[
+            SubItemInput(value="sub_item_one"),
+            SubItemInput(value="sub_item_two"),
+        ]
+    )
+
+    item_id = item_service.create(object_in=test_item).id
+
+    item = item_service.read(id=item_id)
+
+    assert item is not None
+    assert len(item.sub_items) == 2
+    assert item.sub_items[0].value == "sub_item_one"
+    assert item.sub_items[1].value == "sub_item_two"

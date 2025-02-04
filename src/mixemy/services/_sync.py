@@ -68,12 +68,39 @@ class BaseSyncService(
     repository_type: type[RepositorySyncT]
     output_schema_type: type[OutputSchemaT]
 
-    def __init__(self, db_session: Session) -> None:
+    default_model_recursive_model_conversion: bool = False
+    default_schema_exclude_unset: bool = True
+    default_schema_exclude: set[str] | None = None
+    default_schema_by_alias: bool = True
+
+    def __init__(
+        self,
+        db_session: Session,
+        *,
+        recursive_model_conversion: bool | None = None,
+        exclude_unset: bool | None = None,
+        exclude: set[str] | None = None,
+        by_alias: bool | None = None,
+    ) -> None:
         self._verify_init()
         self.output_schema = self.output_schema_type
         self.repository = self.repository_type()
         self.model = self.repository.model
         self.db_session = db_session
+        self.recursive_model_conversion = (
+            recursive_model_conversion
+            if recursive_model_conversion is not None
+            else self.default_model_recursive_model_conversion
+        )
+        self.exclude_unset = (
+            exclude_unset
+            if exclude_unset is not None
+            else self.default_schema_exclude_unset
+        )
+        self.exclude = exclude if exclude is not None else self.default_schema_exclude
+        self.by_alias = (
+            by_alias if by_alias is not None else self.default_schema_by_alias
+        )
 
     def create(
         self,
@@ -184,8 +211,33 @@ class BaseSyncService(
             execution_options=execution_options,
         )
 
-    def _to_model(self, schema: CreateSchemaT | UpdateSchemaT) -> BaseModelT:
-        return to_model(schema=schema, model=self.model)
+    def _to_model(
+        self,
+        schema: CreateSchemaT | UpdateSchemaT,
+        *,
+        recursive_model_conversion: bool | None = None,
+        exclude_unset: bool | None = None,
+        exclude: set[str] | None = None,
+        by_alias: bool | None = None,
+    ) -> BaseModelT:
+        current_recursive_model_conversion = (
+            recursive_model_conversion
+            if recursive_model_conversion is not None
+            else self.recursive_model_conversion
+        )
+        current_exclude_unset = (
+            exclude_unset if exclude_unset is not None else self.exclude_unset
+        )
+        current_exclude = exclude if exclude is not None else self.exclude
+        current_by_alias = by_alias if by_alias is not None else self.by_alias
+        return to_model(
+            schema=schema,
+            model=self.model,
+            recursive_conversion=current_recursive_model_conversion,
+            exclude_unset=current_exclude_unset,
+            exclude=current_exclude,
+            by_alias=current_by_alias,
+        )
 
     def _to_schema(self, model: BaseModelT) -> OutputSchemaT:
         return to_schema(model=model, schema=self.output_schema)
