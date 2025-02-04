@@ -43,6 +43,9 @@ class RecursiveItemModel(models.IdAuditModel):
     sub_items: Mapped[list["SubItemModel"]] = relationship(
         "SubItemModel", back_populates="item"
     )
+    singular_sub_item: Mapped["SingularSubItemModel"] = relationship(
+        "SingularSubItemModel", back_populates="item"
+    )
 
 
 class SubItemModel(models.IdAuditModel):
@@ -52,6 +55,16 @@ class SubItemModel(models.IdAuditModel):
 
     item: Mapped["RecursiveItemModel"] = relationship(
         "RecursiveItemModel", back_populates="sub_items"
+    )
+
+
+class SingularSubItemModel(models.IdAuditModel):
+    __table_args__ = {"extend_existing": True}  # noqa: RUF012
+    value: Mapped[str] = mapped_column(String)
+    item_id: Mapped[UUID] = mapped_column(SQLAUUID, ForeignKey("recursive_item.id"))
+
+    item: Mapped["RecursiveItemModel"] = relationship(
+        "RecursiveItemModel", back_populates="singular_sub_item"
     )
 
 
@@ -73,6 +86,11 @@ def recursive_item_model() -> type[RecursiveItemModel]:
 @pytest.fixture(scope="module")
 def sub_item_model() -> type[SubItemModel]:
     return SubItemModel
+
+
+@pytest.fixture(scope="module")
+def singular_sub_item_model() -> type[SingularSubItemModel]:
+    return SingularSubItemModel
 
 
 @pytest.fixture(scope="module")
@@ -138,3 +156,4 @@ def init_db(
     AsyncItemModel.__table__.create(bind=engine)  # type: ignore - Only for testing
     RecursiveItemModel.__table__.create(bind=engine)  # type: ignore - Only for testing
     SubItemModel.__table__.create(bind=engine)  # type: ignore - Only for testing
+    SingularSubItemModel.__table__.create(bind=engine)  # type: ignore - Only for testing

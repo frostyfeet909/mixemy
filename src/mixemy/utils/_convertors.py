@@ -30,16 +30,15 @@ def to_model(
     exclude: set[str] | None = None,
     by_alias: bool = True,
 ) -> BaseModelT:
-    sub_models: dict[str, list[BaseModel]] = {}
+    sub_models: dict[str, list[BaseModel] | BaseModel] = {}
     if recursive_conversion:
         if exclude is None:
             exclude = set()
         relationships = inspect(model).relationships
         for relationship in relationships:
             if hasattr(schema, relationship.key):
-                sub_models[relationship.key] = []
-                for item in getattr(schema, relationship.key):
-                    sub_models[relationship.key].append(
+                sub_models[relationship.key] = (
+                    [
                         to_model(
                             model=relationship.mapper.class_,
                             schema=item,
@@ -48,7 +47,18 @@ def to_model(
                             exclude=exclude,
                             by_alias=by_alias,
                         )
+                        for item in getattr(schema, relationship.key)
+                    ]
+                    if relationship.uselist
+                    else to_model(
+                        model=relationship.mapper.class_,
+                        schema=getattr(schema, relationship.key),
+                        recursive_conversion=recursive_conversion,
+                        exclude_unset=exclude_unset,
+                        exclude=exclude,
+                        by_alias=by_alias,
                     )
+                )
 
                 exclude.add(relationship.key)
 

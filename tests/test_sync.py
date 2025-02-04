@@ -95,10 +95,7 @@ def test_main(
 
 
 def test_recursive_model(
-    session: Session,
-    init_db: None,
-    recursive_item_model: "type[IdAuditModel]",
-    sub_item_model: "type[IdAuditModel]",
+    session: Session, init_db: None, recursive_item_model: "type[IdAuditModel]"
 ) -> None:
     from mixemy import repositories, schemas, services
 
@@ -107,14 +104,22 @@ def test_recursive_model(
     class SubItemInput(schemas.InputSchema):
         value: str
 
+    class SingularSubItemInput(schemas.InputSchema):
+        value: str
+
     class SubItemOutput(schemas.IdAuditOutputSchema):
+        value: str
+
+    class SingularSubItemOutput(schemas.IdAuditOutputSchema):
         value: str
 
     class ItemInput(schemas.InputSchema):
         sub_items: list[SubItemInput]
+        singular_sub_item: SingularSubItemInput
 
     class ItemOutput(schemas.IdAuditOutputSchema):
         sub_items: list[SubItemOutput]
+        singular_sub_item: SingularSubItemOutput
 
     class ItemRepository(repositories.BaseSyncRepository[RecursiveItemModel]):
         model_type = RecursiveItemModel
@@ -139,7 +144,8 @@ def test_recursive_model(
         sub_items=[
             SubItemInput(value="sub_item_one"),
             SubItemInput(value="sub_item_two"),
-        ]
+        ],
+        singular_sub_item=SingularSubItemInput(value="singular_sub_item"),
     )
 
     item_id = item_service.create(object_in=test_item).id
@@ -150,3 +156,4 @@ def test_recursive_model(
     assert len(item.sub_items) == 2
     assert item.sub_items[0].value == "sub_item_one"
     assert item.sub_items[1].value == "sub_item_two"
+    assert item.singular_sub_item.value == "singular_sub_item"
