@@ -1,18 +1,21 @@
+from typing import TYPE_CHECKING
+
 import pytest
-from sqlalchemy import String
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column
+
+if TYPE_CHECKING:
+    from mixemy.models import IdAuditModel
 
 
 @pytest.mark.database
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_main(async_session: AsyncSession, init_db: None) -> None:
-    from mixemy import models, repositories, schemas, services
+async def test_main(
+    async_session: AsyncSession, async_item_model: "type[IdAuditModel]", init_db: None
+) -> None:
+    from mixemy import repositories, schemas, services
 
-    class AsyncItemModel(models.IdAuditModel):
-        __table_args__ = {"extend_existing": True}  # noqa: RUF012
-        value: Mapped[str] = mapped_column(String)
+    AsyncItemModel = async_item_model
 
     class ItemInput(schemas.InputSchema):
         value: str
