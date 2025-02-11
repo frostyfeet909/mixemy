@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import Any, Generic
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Result, Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.orm.strategy_options import (
@@ -319,6 +319,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_commit: bool | None,
         auto_expunge: bool | None,
         auto_refresh: bool | None,
+        refresh_columns: list[str] | None = None,
     ) -> None:
         if auto_commit is True or (auto_commit is None and self.auto_commit):
             await db_session.commit()
@@ -331,7 +332,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             )
             if auto_refresh is True or (auto_refresh is None and self.auto_refresh):
                 for instance in instances:
-                    await db_session.refresh(instance)
+                    await db_session.refresh(instance, attribute_names=refresh_columns)
             if auto_expunge is True or (auto_expunge is None and self.auto_expunge):
                 for instance in instances:
                     db_session.expunge(instance)
@@ -409,6 +410,23 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
         return db_object
 
+    async def _execute(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool = False,
+    ) -> Result[SelectT]:
+        statement = self._prepare_statement(
+            statement=statement,
+            loader_options=loader_options,
+            execution_options=execution_options,
+            with_for_update=with_for_update,
+        )
+        return await db_session.execute(statement)
+
     async def _execute_returning_all(
         self,
         db_session: AsyncSession,
@@ -421,13 +439,13 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None,
         with_for_update: bool = False,
     ) -> Sequence[Any]:
-        statement = self._prepare_statement(
+        res = await self._execute(
+            db_session=db_session,
             statement=statement,
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
         )
-        res = await db_session.execute(statement)
         db_objects: Sequence[Any] = res.scalars().all()
         await self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
@@ -450,14 +468,43 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None,
         with_for_update: bool = False,
     ) -> Any:
-        statement = self._prepare_statement(
+        res = await self._execute(
+            db_session=db_session,
             statement=statement,
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
         )
-        res = await db_session.execute(statement)
         db_object = res.scalar_one()
+        await self._maybe_commit_or_flush_or_refresh_or_expunge(
+            db_session=db_session,
+            db_object=db_object,
+            auto_commit=auto_commit,
+            auto_expunge=auto_expunge,
+            auto_refresh=auto_refresh,
+        )
+        return db_object
+
+    async def _execute_returning_one_or_none(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool = False,
+    ) -> Any | None:
+        res = await self._execute(
+            db_session=db_session,
+            statement=statement,
+            loader_options=loader_options,
+            execution_options=execution_options,
+            with_for_update=with_for_update,
+        )
+        db_object = res.scalar_one_or_none()
         await self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_object,
