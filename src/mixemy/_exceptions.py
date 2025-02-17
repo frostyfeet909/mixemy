@@ -66,7 +66,7 @@ class MixemyRepositorySetupError(MixemySetupError):
 class MixemyServiceSetupError(MixemySetupError):
     def __init__(
         self,
-        service: "BaseSyncService[Any, Any, Any, Any, Any, Any] | BaseAsyncService[Any, Any, Any, Any, Any, Any]",
+        service: "BaseSyncService[Any, Any] | BaseAsyncService[Any, Any]",
         undefined_field: str,
         message: str | None = None,
     ) -> None:

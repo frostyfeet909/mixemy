@@ -26,11 +26,7 @@ async def test_main(
     class ItemRepository(repositories.BaseAsyncRepository[AsyncItemModel]):
         model_type = AsyncItemModel
 
-    class ItemService(
-        services.BaseAsyncService[
-            AsyncItemModel, ItemRepository, ItemInput, ItemInput, ItemInput, ItemOutput
-        ]
-    ):
+    class ItemService(services.BaseAsyncService[ItemRepository, ItemOutput]):
         repository_type = ItemRepository
         output_schema_type = ItemOutput
 
