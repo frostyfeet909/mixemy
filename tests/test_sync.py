@@ -32,11 +32,7 @@ def test_main(
     class ItemRepository(repositories.BaseSyncRepository[ItemModel]):
         model_type = ItemModel
 
-    class ItemService(
-        services.BaseSyncService[
-            ItemModel, ItemRepository, ItemInput, ItemUpdate, ItemFilter, ItemOutput
-        ]
-    ):
+    class ItemService(services.BaseSyncService[ItemRepository, ItemOutput]):
         repository_type = ItemRepository
         output_schema_type = ItemOutput
 
@@ -126,11 +122,7 @@ def test_recursive_model(
 
     class ItemService(
         services.BaseSyncService[
-            RecursiveItemModel,
             ItemRepository,
-            ItemInput,
-            ItemInput,
-            ItemInput,
             ItemOutput,
         ]
     ):

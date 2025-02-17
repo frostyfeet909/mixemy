@@ -7,26 +7,17 @@ from sqlalchemy.orm.strategy_options import (
 )
 
 from mixemy._exceptions import MixemyServiceSetupError
+from mixemy.models import BaseModel
+from mixemy.schemas import InputSchema
 from mixemy.types import (
-    BaseModelT,
-    CreateSchemaT,
-    FilterSchemaT,
     OutputSchemaT,
     RepositorySyncT,
-    UpdateSchemaT,
 )
 from mixemy.utils import to_model, to_schema
 
 
 class BaseSyncService(
-    Generic[
-        BaseModelT,
-        RepositorySyncT,
-        CreateSchemaT,
-        UpdateSchemaT,
-        FilterSchemaT,
-        OutputSchemaT,
-    ],
+    Generic[RepositorySyncT, OutputSchemaT],
     ABC,
 ):
     """
@@ -35,11 +26,7 @@ class BaseSyncService(
     (create, read, update, delete) using synchronous methods. It is designed
     to work with SQLAlchemy's SyncSession and generic repository patterns.
     Type Parameters:
-        BaseModelT: The type of the base model.
         RepositorySyncT: The type of the synchronous repository.
-        CreateSchemaT: The type of the schema used for creating objects.
-        UpdateSchemaT: The type of the schema used for updating objects.
-        FilterSchemaT: The type of the schema used for filtering objects.
         OutputSchemaT: The type of the schema used for outputting objects.
     Attributes:
         repository_type (type[RepositorySyncT]): The type of the repository.
@@ -83,9 +70,9 @@ class BaseSyncService(
         by_alias: bool | None = None,
     ) -> None:
         self._verify_init()
-        self.output_schema = self.output_schema_type
         self.repository = self.repository_type()
         self.model = self.repository.model
+        self.output_schema = self.output_schema_type
         self.db_session = db_session
         self.recursive_model_conversion = (
             recursive_model_conversion
@@ -104,8 +91,9 @@ class BaseSyncService(
 
     def create(
         self,
-        object_in: CreateSchemaT,
+        object_in: InputSchema,
         *,
+        recursive_model_conversion: bool | None = None,
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
         auto_commit: bool | None = None,
@@ -113,7 +101,10 @@ class BaseSyncService(
         return self._to_schema(
             model=self.repository.create(
                 db_session=self.db_session,
-                db_object=self._to_model(schema=object_in),
+                db_object=self._to_model(
+                    schema=object_in,
+                    recursive_model_conversion=recursive_model_conversion,
+                ),
                 auto_expunge=auto_expunge,
                 auto_refresh=auto_refresh,
                 auto_commit=auto_commit,
@@ -146,7 +137,7 @@ class BaseSyncService(
 
     def read_multiple(
         self,
-        filters: FilterSchemaT | None = None,
+        filters: InputSchema | None = None,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -168,7 +159,7 @@ class BaseSyncService(
     def update(
         self,
         id: Any,
-        object_in: UpdateSchemaT,
+        object_in: InputSchema,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -213,13 +204,13 @@ class BaseSyncService(
 
     def _to_model(
         self,
-        schema: CreateSchemaT | UpdateSchemaT,
+        schema: InputSchema,
         *,
         recursive_model_conversion: bool | None = None,
         exclude_unset: bool | None = None,
         exclude: set[str] | None = None,
         by_alias: bool | None = None,
-    ) -> BaseModelT:
+    ) -> BaseModel:
         current_recursive_model_conversion = (
             recursive_model_conversion
             if recursive_model_conversion is not None
@@ -239,7 +230,7 @@ class BaseSyncService(
             by_alias=current_by_alias,
         )
 
-    def _to_schema(self, model: BaseModelT) -> OutputSchemaT:
+    def _to_schema(self, model: BaseModel) -> OutputSchemaT:
         return to_schema(model=model, schema=self.output_schema)
 
     def _verify_init(self) -> None:

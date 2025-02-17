@@ -7,26 +7,17 @@ from sqlalchemy.orm.strategy_options import (
 )
 
 from mixemy._exceptions import MixemyServiceSetupError
+from mixemy.models import BaseModel
+from mixemy.schemas import InputSchema
 from mixemy.types import (
-    BaseModelT,
-    CreateSchemaT,
-    FilterSchemaT,
     OutputSchemaT,
     RepositoryAsyncT,
-    UpdateSchemaT,
 )
 from mixemy.utils import to_model, to_schema
 
 
 class BaseAsyncService(
-    Generic[
-        BaseModelT,
-        RepositoryAsyncT,
-        CreateSchemaT,
-        UpdateSchemaT,
-        FilterSchemaT,
-        OutputSchemaT,
-    ],
+    Generic[RepositoryAsyncT, OutputSchemaT],
     ABC,
 ):
     """
@@ -35,11 +26,7 @@ class BaseAsyncService(
     (create, read, update, delete) using asynchronous methods. It is designed
     to work with SQLAlchemy's AsyncSession and generic repository patterns.
     Type Parameters:
-        BaseModelT: The type of the base model.
         RepositoryAsyncT: The type of the asynchronous repository.
-        CreateSchemaT: The type of the schema used for creating objects.
-        UpdateSchemaT: The type of the schema used for updating objects.
-        FilterSchemaT: The type of the schema used for filtering objects.
         OutputSchemaT: The type of the schema used for outputting objects.
     Attributes:
         repository_type (type[RepositoryAsyncT]): The type of the repository.
@@ -83,9 +70,9 @@ class BaseAsyncService(
         by_alias: bool | None = None,
     ) -> None:
         self._verify_init()
-        self.output_schema = self.output_schema_type
         self.repository = self.repository_type()
         self.model = self.repository.model
+        self.output_schema = self.output_schema_type
         self.db_session = db_session
         self.recursive_model_conversion = (
             recursive_model_conversion
@@ -104,7 +91,7 @@ class BaseAsyncService(
 
     async def create(
         self,
-        object_in: CreateSchemaT,
+        object_in: InputSchema,
         *,
         recursive_model_conversion: bool | None = None,
         auto_expunge: bool | None = None,
@@ -150,7 +137,7 @@ class BaseAsyncService(
 
     async def read_multiple(
         self,
-        filters: FilterSchemaT | None = None,
+        filters: InputSchema | None = None,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -172,7 +159,7 @@ class BaseAsyncService(
     async def update(
         self,
         id: Any,
-        object_in: UpdateSchemaT,
+        object_in: InputSchema,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -217,13 +204,13 @@ class BaseAsyncService(
 
     def _to_model(
         self,
-        schema: CreateSchemaT | UpdateSchemaT,
+        schema: InputSchema,
         *,
         recursive_model_conversion: bool | None = None,
         exclude_unset: bool | None = None,
         exclude: set[str] | None = None,
         by_alias: bool | None = None,
-    ) -> BaseModelT:
+    ) -> BaseModel:
         current_recursive_model_conversion = (
             recursive_model_conversion
             if recursive_model_conversion is not None
@@ -243,7 +230,7 @@ class BaseAsyncService(
             by_alias=current_by_alias,
         )
 
-    def _to_schema(self, model: BaseModelT) -> OutputSchemaT:
+    def _to_schema(self, model: BaseModel) -> OutputSchemaT:
         return to_schema(model=model, schema=self.output_schema)
 
     def _verify_init(self) -> None:
