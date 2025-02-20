@@ -9,217 +9,210 @@
 
 **Mixemy** is a small library providing a set of mixins for [SQLAlchemy](https://www.sqlalchemy.org/) and [Pydantic](https://docs.pydantic.dev/) to simplify common create/read/update/delete (CRUD) operations, validation, and schema management using a _service and repository_ pattern. **Both synchronous and asynchronous modes** are supported.
 
+---
+
+## Mixemy
+
+Mixemy provides a repository and service abstraction layer for managing database operations with SQLAlchemy. By leveraging mixemy, you can easily implement CRUD operations in both asynchronous and synchronous contexts, as well as support complex nested (recursive) models with minimal boilerplate.
+
 ## Features
 
-- **Models**: Base classes and mixins that extend SQLAlchemy `declarative_base()` models with useful fields like IDs and timestamps.
-- **Schemas**: Pydantic schemas for input validation, serialization, filtering, and more.
-- **Repositories**: Classes that handle data persistence and database interactions, such as retrieving or storing model objects.
-- **Services**: High-level classes that orchestrate CRUD operations, input validation, and output transformation (using repositories and schemas).
-- **Async or Sync**: Out of the box, Mixemy offers both synchronous and asynchronous repositories/services.
+- **CRUD Abstraction:** Simplify database operations with pre-built repository and service classes.
+- **Async & Sync Support:** Work with both asynchronous (AsyncSession) and synchronous (Session) SQLAlchemy sessions.
+- **Recursive Model Conversion:** Automatically convert nested models for complex data structures.
+- **Type-Safe Schemas:** Define input and output schemas using Pydantic-style models for data validation and serialization.
 
 ## Installation
+
+Install mixemy using pip:
 
 ```bash
 pip install mixemy
 ```
 
-*or*, if you prefer [Poetry](https://python-poetry.org/):
+_(Adjust the installation command based on your environment and package source.)_
 
-```bash
-poetry add mixemy
-```
+## Getting Started
 
-## Quick Start (Sync Example)
+Mixemy revolves around three core components:
+- **Schemas:** Define your data structures for input and output.
+- **Repositories:** Implement CRUD operations on your SQLAlchemy models.
+- **Services:** Build business logic on top of repositories with additional validation or transformation.
 
-Below is a minimal synchronous example demonstrating how to use **Mixemy** to create:
+Below are usage examples for different contexts.
 
-- A SQLAlchemy model,
-- Pydantic schemas for input, update, filter, and output, 
-- A repository class for database operations,
-- A service class that orchestrates create/read/update/delete operations.
+---
+
+## Asynchronous CRUD Example
+
+When working with asynchronous applications, use `AsyncSession` along with mixemy’s asynchronous base classes.
 
 ```python
-from sqlalchemy.orm import Mapped, mapped_column, Session
-from sqlalchemy import String
+from sqlalchemy.ext.asyncio import AsyncSession
+from mixemy import repositories, schemas, services
 
-from mixemy import models, repositories, schemas, services
+# Assume AsyncItemModel is your SQLAlchemy model.
 
-# 1. Define a SQLAlchemy model with default fields (e.g., id, created_at, updated_at).
-class ItemModel(models.IdAuditModel):
-    __table_args__ = {"extend_existing": True}  # noqa: RUF012
-    value: Mapped[str] = mapped_column(String)
-    nullable_value: Mapped[str | None] = mapped_column(String, nullable=True)
+# Define the input and output schemas.
+class ItemInput(schemas.InputSchema):
+    value: str
 
-# 2. Define Pydantic schemas for input, updates, filtering, and output.
+class ItemOutput(schemas.IdAuditOutputSchema):
+    value: str
+
+# Create an asynchronous repository by extending the base async repository.
+class ItemRepository(repositories.BaseAsyncRepository[AsyncItemModel]):
+    model_type = AsyncItemModel
+
+# Create a service that uses the repository and output schema.
+class ItemService(services.BaseAsyncService[ItemRepository, ItemOutput]):
+    repository_type = ItemRepository
+    output_schema_type = ItemOutput
+
+# Example usage in an async context.
+async def main(async_session: AsyncSession):
+    item_service = ItemService(db_session=async_session)
+
+    # Create a new item.
+    item_input = ItemInput(value="example")
+    new_item = await item_service.create(object_in=item_input)
+
+    # Read the newly created item.
+    read_item = await item_service.read(id=new_item.id)
+
+    # Update the item.
+    updated_item = await item_service.update(
+        id=new_item.id, object_in=ItemInput(value="updated")
+    )
+
+    # Delete the item.
+    await item_service.delete(id=updated_item.id)
+```
+
+---
+
+## Synchronous CRUD Example
+
+For synchronous operations, mixemy provides base classes that work with SQLAlchemy’s `Session`.
+
+```python
+from sqlalchemy.orm import Session
+from mixemy import repositories, schemas, services
+
+# Assume ItemModel is your SQLAlchemy model.
+
+# Define your input schema and an extended update schema.
 class ItemInput(schemas.InputSchema):
     value: str
 
 class ItemUpdate(ItemInput):
     nullable_value: str | None
 
-class ItemFilter(schemas.InputSchema):
-    value: list[str]
-
+# Define the output schema.
 class ItemOutput(schemas.IdAuditOutputSchema):
     value: str
     nullable_value: str | None
 
-# 3. Define a repository for database operations.
-class ItemRepository(repositories.IdAuditSyncRepository[ItemModel]):
+# Create a synchronous repository by extending the base sync repository.
+class ItemRepository(repositories.BaseSyncRepository[ItemModel]):
     model_type = ItemModel
 
-# 4. Define a service that uses the repository and schemas to provide CRUD operations.
-class ItemService(
-    services.IdAuditSyncService[
-        ItemModel, ItemInput, ItemUpdate, ItemFilter, ItemOutput
-    ]
-):
+# Create a service that uses the repository and output schema.
+class ItemService(services.BaseSyncService[ItemRepository, ItemOutput]):
     repository_type = ItemRepository
     output_schema_type = ItemOutput
 
-# 5. Instantiate the service class.
-item_service = ItemService(db_session=...)
+# Example usage in a synchronous context.
+def main(session: Session):
+    item_service = ItemService(db_session=session)
 
-# 6. Example usage in a synchronous context:
-def example_usage():
-    test_one = ItemInput(value="test_one")
-    test_two = ItemInput(value="test_two")
-    test_three = ItemInput(value="test_one")
-    test_one_update = ItemUpdate(value="test_one", nullable_value="test_one_updated")
+    # Create a new item.
+    item_input = ItemInput(value="example")
+    new_item = item_service.create(object_in=item_input)
 
-    # Create items
-    item_one = item_service.create(object_in=test_one)
-    item_two = item_service.create(object_in=test_two)
-    item_service.create(object_in=test_three)
+    # Read the newly created item.
+    read_item = item_service.read(id=new_item.id)
 
-    # Read items
-    item_one = item_service.read(id=item_one.id)
-    item_two = item_service.read(id=item_two.id)
-
-    # Update an item
-    item_one = item_service.update(
-        id=item_one.id, object_in=test_one_update
+    # Update the item.
+    updated_item = item_service.update(
+        id=new_item.id,
+        object_in=ItemUpdate(value="updated", nullable_value="new_value")
     )
 
-    # Read multiple items by filter
-    items = item_service.read_multi(
-        filters=ItemFilter(value=["test_one"])
-    )
-
-    # Delete an item
-    item_service.delete(id=item_one.id)
+    # Delete the item.
+    item_service.delete(id=updated_item.id)
 ```
 
-### Explanation (Sync)
+---
 
-- **`ItemModel`**  
-  Inherits from `models.IdAuditModel`, which provides common columns such as `id`, `created_at`, and `updated_at`. We add our own `value` and an optional `nullable_value`.
+## Recursive Model Example
 
-- **Pydantic Schemas**  
-  - `ItemInput` for creating an item,  
-  - `ItemUpdate` for updating existing items,  
-  - `ItemFilter` for filtering when reading multiple items,  
-  - `ItemOutput` for returning data (e.g., in a response).
-
-- **`ItemRepository`**  
-  Extends `repositories.IdAuditSyncRepository`, which handles database interactions for the given model.
-
-- **`ItemService`**  
-  Extends `services.IdAuditSyncService`, which implements the common operations (`create`, `read`, `update`, `delete`) using the repository. You can override these methods if you need custom behavior.
-
-## Asynchronous Example
-
-If you prefer to work with asynchronous database sessions (e.g., using `async_session`), Mixemy provides **async repositories** and **async services**:
+Mixemy also supports recursive (nested) models, automatically converting nested structures when reading or writing data.
 
 ```python
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String
+from sqlalchemy.orm import Session
+from mixemy import repositories, schemas, services
 
-from mixemy import models, repositories, schemas, services
+# Assume RecursiveItemModel is your SQLAlchemy model with nested relationships.
 
-class AsyncItemModel(models.IdAuditModel):
-    __table_args__ = {"extend_existing": True}  # noqa: RUF012
-    value: Mapped[str] = mapped_column(String)
-
-class ItemInput(schemas.InputSchema):
+# Define schemas for sub-items.
+class SubItemInput(schemas.InputSchema):
     value: str
+
+class SingularSubItemInput(schemas.InputSchema):
+    value: str
+
+class SubItemOutput(schemas.IdAuditOutputSchema):
+    value: str
+
+class SingularSubItemOutput(schemas.IdAuditOutputSchema):
+    value: str
+
+# Define the main item schemas with nested sub-items.
+class ItemInput(schemas.InputSchema):
+    sub_items: list[SubItemInput]
+    singular_sub_item: SingularSubItemInput
 
 class ItemOutput(schemas.IdAuditOutputSchema):
-    value: str
+    sub_items: list[SubItemOutput]
+    singular_sub_item: SingularSubItemOutput
 
-class ItemRepository(repositories.IdAuditAsyncRepository[AsyncItemModel]):
-    model_type = AsyncItemModel
+# Create a repository for the recursive model.
+class ItemRepository(repositories.BaseSyncRepository[RecursiveItemModel]):
+    model_type = RecursiveItemModel
 
-class ItemService(
-    services.IdAuditAsyncService[
-        AsyncItemModel, ItemInput, ItemInput, ItemInput, ItemOutput
-    ]
-):
+# Create a service with recursive model conversion enabled.
+class ItemService(services.BaseSyncService[ItemRepository, ItemOutput]):
     repository_type = ItemRepository
     output_schema_type = ItemOutput
+    default_model_recursive_model_conversion = True
 
-item_service = ItemService(db_session=...)
+# Example usage.
+def main(session: Session):
+    item_service = ItemService(db_session=session)
 
-async def async_example_usage():
-    test_one = ItemInput(value="test_one")
-    test_two = ItemInput(value="test_two")
-
-    # Create items
-    item_one = await item_service.create(object_in=test_one)
-    item_two = await item_service.create(object_in=test_two)
-
-    assert item_one.value == "test_one"
-    assert item_two.value == "test_two"
-
-    # Read items
-    item_one = await item_service.read(id=item_one.id)
-    item_two = await item_service.read(id=item_two.id)
-
-    assert item_one is not None
-    assert item_two is not None
-    assert item_one.value == "test_one"
-    assert item_two.value == "test_two"
-
-    # Update an item (using the same schema here for simplicity)
-    item_one = await item_service.update(
-        id=item_one.id, object_in=test_two
+    # Define an item with nested sub-items.
+    item_input = ItemInput(
+        sub_items=[SubItemInput(value="subitem1"), SubItemInput(value="subitem2")],
+        singular_sub_item=SingularSubItemInput(value="main_item")
     )
 
-    assert item_one.value == "test_two"
+    # Create the item.
+    new_item = item_service.create(object_in=item_input)
 
-    # Delete an item
-    await item_service.delete(id=item_one.id)
-    item_one = await item_service.read(id=item_one.id)
-
-    # Verify it was deleted
-    assert item_one is None
-
-    # Check the second item is still intact
-    item_two = await item_service.read(id=item_two.id)
-    assert item_two is not None
-    assert item_two.value == "test_two"
-
-    # Finally, delete the second item
-    await item_service.delete(id=item_two.id)
-    item_two = await item_service.read(id=item_two.id)
-    assert item_two is None
+    # Retrieve the item with nested models automatically converted.
+    read_item = item_service.read(id=new_item.id)
 ```
 
-### Explanation (Async)
+---
 
-- **`AsyncItemModel`**  
-  Same as a typical SQLAlchemy model but used in conjunction with async sessions.
+## Additional Information
 
-- **Pydantic Schemas**  
-  Adjusted as needed for create and output. You can have distinct schemas for update/filter, too.
+- **Schema Definitions:** Mixemy uses schema classes (e.g., `InputSchema` and `IdAuditOutputSchema`) to validate and serialize data. You can customize these schemas according to your domain requirements.
+- **Extensibility:** The repository and service classes can be extended to add custom query logic or additional business rules.
+- **Integration:** Mixemy is designed to integrate seamlessly with SQLAlchemy, ensuring you can work with your existing models without significant modifications.
 
-- **`ItemRepository`**  
-  Extends `repositories.IdAuditAsyncRepository`, which is the async variant for database interactions.
-
-- **`ItemService`**  
-  Extends `services.IdAuditAsyncService`, which implements the common async operations (`create`, `read`, `update`, `delete`) using the async repository.  
-
-With these async classes, you can integrate Mixemy into your async Python frameworks like **FastAPI** or **Quart** seamlessly.
+---
 
 ## Why Use Mixemy?
 
