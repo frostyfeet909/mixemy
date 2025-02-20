@@ -8,6 +8,16 @@ from mixemy.models._base import BaseModel
 
 
 class AuditModel(BaseModel):
+    """AuditModel is an abstract base class that provides automatic timestamping for created and updated records.
+
+    Attributes:
+        created_at (datetime): The timestamp when the record was created. This is
+            automatically set to the current time when the record is created.
+        updated_at (datetime): The timestamp when the record was last updated. This
+            is automatically updated to the current time whenever the record is
+            updated.
+    """
+
     __abstract__ = True
 
     created_at: Mapped[datetime] = mapped_column(

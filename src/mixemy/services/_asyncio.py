@@ -20,8 +20,8 @@ class BaseAsyncService(
     Generic[RepositoryAsyncT, OutputSchemaT],
     ABC,
 ):
-    """
-    Base class for asynchronous services.
+    """Base class for asynchronous services.
+
     This class provides a generic implementation for common CRUD operations
     (create, read, update, delete) using asynchronous methods. It is designed
     to work with SQLAlchemy's AsyncSession and generic repository patterns.

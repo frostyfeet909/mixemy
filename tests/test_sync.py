@@ -12,6 +12,27 @@ if TYPE_CHECKING:
 def test_main(
     session: Session, init_db: None, item_model: "type[IdAuditModel]"
 ) -> None:
+    """Test the main functionality of the ItemService class.
+
+    This test covers the following scenarios:
+    1. Creating items.
+    2. Reading items by ID.
+    3. Updating an item.
+    4. Reading multiple items with filters.
+    5. Deleting items.
+
+    Args:
+        session (Session): The database session to use for the test.
+        init_db (None): Fixture to initialize the database.
+        item_model (type[IdAuditModel]): The model class to use for the items.
+
+    Raises:
+        - The created items have the correct values.
+        - The read items are not None and have the correct values.
+        - The updated item has the correct updated values.
+        - The correct number of items are returned when filtering.
+        - The deleted items are no longer present in the database.
+    """
     from mixemy import repositories, schemas, services
 
     ItemModel = item_model
@@ -93,6 +114,21 @@ def test_main(
 def test_recursive_model(
     session: Session, init_db: None, recursive_item_model: "type[IdAuditModel]"
 ) -> None:
+    """Test the recursive model functionality.
+
+    This test verifies the creation and retrieval of a recursive item model
+    using the provided session and database initialization.
+
+    Args:
+        session (Session): The database session to use for the test.
+        init_db (None): A fixture to initialize the database.
+        recursive_item_model (type[IdAuditModel]): The recursive item model type.
+
+    Raises:
+        The created item is not None.
+        The created item has two sub-items with the expected values.
+        The created item has a singular sub-item with the expected value.
+    """
     from mixemy import repositories, schemas, services
 
     RecursiveItemModel = recursive_item_model

@@ -20,11 +20,12 @@ class BaseSyncService(
     Generic[RepositorySyncT, OutputSchemaT],
     ABC,
 ):
-    """
-    Base class for synchronous services.
+    """Base class for synchronous services.
+
     This class provides a generic implementation for common CRUD operations
     (create, read, update, delete) using synchronous methods. It is designed
     to work with SQLAlchemy's SyncSession and generic repository patterns.
+
     Type Parameters:
         RepositorySyncT: The type of the synchronous repository.
         OutputSchemaT: The type of the schema used for outputting objects.
