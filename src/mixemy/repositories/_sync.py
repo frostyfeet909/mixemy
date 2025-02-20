@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import Any, Generic
 
-from sqlalchemy import Result, Select, func, select
+from sqlalchemy import Result, ScalarResult, Select, func, select
 from sqlalchemy.orm import InstrumentedAttribute, Session
 from sqlalchemy.orm.strategy_options import (
     _AbstractLoad,  # pyright: ignore[reportPrivateUsage]
@@ -18,58 +18,58 @@ from mixemy.utils import unpack_schema
 
 class BaseSyncRepository(Generic[BaseModelT], ABC):
     """
-    A base class for synchronous repositories that provides common CRUD operations.
+    Base asynchronous repository class providing CRUD operations for a given SQLAlchemy model.
     Attributes:
-        model_type (type[BaseModelT]): The type of the model.
-        id_attribute (str | InstrumentedAttribute[Any]): The attribute used as the ID field.
-        default_loader_options (tuple[_AbstractLoad] | None): Default loader options for queries.
-        default_execution_options (dict[str, Any] | None): Default execution options for queries.
-        default_auto_expunge (bool): Whether to automatically expunge objects from the session.
-        default_auto_refresh (bool): Whether to automatically refresh objects in the session.
-        default_auto_commit (bool): Whether to automatically commit transactions.
+        model_type (type[BaseModelT]): The SQLAlchemy model type.
+        id_attribute (str | InstrumentedAttribute[Any]): The attribute used as the primary key. Defaults to "id".
+        default_loader_options (tuple[_AbstractLoad] | None): Default loader options for SQLAlchemy queries.
+        default_execution_options (dict[str, Any] | None): Default execution options for SQLAlchemy queries.
+        default_auto_expunge (bool): Whether to automatically expunge objects from the session after operations. Defaults to False.
+        default_auto_refresh (bool): Whether to automatically refresh objects after operations. Defaults to True.
+        default_auto_commit (bool): Whether to automatically commit the session after operations. Defaults to False.
     Methods:
-        __init__(self, *, loader_options, execution_options, auto_expunge, auto_refresh, auto_commit):
-            Initializes the repository with optional settings for loader options, execution options, auto expunge, auto refresh, and auto commit.
-        create(self, db_session, db_object, *, auto_commit, auto_expunge, auto_refresh):
-            Creates a new object in the database.
-        read(self, db_session, id, *, loader_options, execution_options, auto_expunge, auto_commit, with_for_update):
-            Reads an object from the database by its ID.
-        read_multiple(self, db_session, filters, *, loader_options, execution_options, auto_commit, auto_expunge, with_for_update):
-            Reads multiple objects from the database based on filters.
-        update(self, db_session, id, object_in, *, loader_options, execution_options, auto_commit, auto_expunge, auto_refresh, with_for_update):
-            Updates an existing object in the database.
-        update_db_object(self, db_session, db_object, object_in, *, auto_commit, auto_expunge, auto_refresh):
-            Updates an existing database object with new data.
-        delete(self, db_session, id, *, loader_options, execution_options, auto_commit, auto_expunge, with_for_update):
-            Deletes an object from the database by its ID.
-        delete_db_object(self, db_session, db_object, *, auto_commit, auto_expunge):
-            Deletes a database object.
-        count(self, db_session, filters, *, loader_options, execution_options, auto_commit):
-            Counts the number of objects in the database based on filters.
+        __init__(self, *, loader_options=None, execution_options=None, auto_expunge=False, auto_refresh=True, auto_commit=False):
+            Initializes the repository with optional custom settings.
+        create(self, db_session, db_object, *, auto_commit=None, auto_expunge=None, auto_refresh=None):
+            Asynchronously creates a new object in the database.
+        read(self, db_session, id, *, loader_options=None, execution_options=None, auto_expunge=None, auto_commit=False, with_for_update=False):
+            Asynchronously reads an object from the database by its ID.
+        read_multiple(self, db_session, filters=None, *, loader_options=None, execution_options=None, auto_commit=False, auto_expunge=None, with_for_update=False):
+            Asynchronously reads multiple objects from the database based on filters.
+        update(self, db_session, id, object_in, *, loader_options=None, execution_options=None, auto_commit=None, auto_expunge=None, auto_refresh=None, with_for_update=True):
+            Asynchronously updates an object in the database by its ID.
+        update_db_object(self, db_session, db_object, object_in, *, auto_commit=None, auto_expunge=None, auto_refresh=None):
+            Asynchronously updates an existing database object.
+        delete(self, db_session, id, *, loader_options=None, execution_options=None, auto_commit=None, auto_expunge=None, with_for_update=False):
+            Asynchronously deletes an object from the database by its ID.
+        delete_db_object(self, db_session, db_object, *, auto_commit=None, auto_expunge=None):
+            Asynchronously deletes an existing database object.
+        count(self, db_session, filters=None, *, loader_options=None, execution_options=None, auto_commit=False):
+            Asynchronously counts the number of objects in the database based on filters.
         _maybe_commit_or_flush_or_refresh_or_expunge(self, db_session, db_object, *, auto_commit, auto_expunge, auto_refresh):
-            Commits, flushes, refreshes, or expunges the session based on the provided options.
+            Helper method to commit, flush, refresh, or expunge objects from the session based on settings.
         _add(self, db_session, db_object, *, auto_commit, auto_expunge, auto_refresh):
-            Adds a new object to the session and handles commit, flush, refresh, or expunge.
+            Helper method to add an object to the session and handle post-add operations.
         _delete(self, db_session, db_object, *, auto_commit, auto_expunge):
-            Deletes an object from the session and handles commit, flush, refresh, or expunge.
-        _get(self, db_session, id, *, loader_options, execution_options, auto_expunge, with_for_update, auto_commit):
-            Retrieves an object from the database by its ID.
-        _execute_returning_all(self, db_session, statement, *, loader_options, execution_options, auto_commit, auto_expunge, auto_refresh, with_for_update):
-            Executes a statement and returns all results.
-        _execute_returning_one(self, db_session, statement, *, loader_options, execution_options, auto_commit, auto_expunge, auto_refresh, with_for_update):
-            Executes a statement and returns a single result.
-        _add_pagination(self, statement, filters):
-            Adds pagination to a statement based on filters.
-        _add_filters(self, statement, filters):
-            Adds filters to a statement based on the provided filters.
-        _prepare_statement(self, statement, *, loader_options, execution_options, with_for_update):
-            Prepares a statement with loader options, execution options, and for update options.
-        _update_db_object(db_object, object_in):
-            Updates a database object with new data.
-        _verify_init(self):
-            Verifies that the repository is properly initialized.
-        _set_id_field(self, id_field):
-            Sets the ID field for the repository.
+            Helper method to delete an object from the session and handle post-delete operations.
+        _get(self, db_session, id, *, loader_options, execution_options, auto_expunge, with_for_update, auto_commit=False):
+            Helper method to get an object from the database by its ID.
+        _execute_returning_all(self, db_session, statement, *, loader_options, execution_options, auto_commit, auto_expunge, auto_refresh, with_for_update=False):
+            Helper method to execute a statement and return all results.
+        _execute_returning_one(self, db_session, statement, *, loader_options, execution_options, auto_commit, auto_expunge, auto_refresh, with_for_update=False):
+            Helper method to execute a statement and return a single result.
+        def _add_pagination(self, statement, filters):
+            Helper method to add pagination to a SQLAlchemy statement.
+        def _add_filters(self, statement, filters):
+            Helper method to add filters to a SQLAlchemy statement.
+        def _prepare_statement(self, statement, *, loader_options, execution_options, with_for_update):
+            Helper method to prepare a SQLAlchemy statement with options and execution settings.
+        def _update_db_object(db_object, object_in):
+            Helper method to update a database object with new values.
+        def _verify_init(self):
+            Helper method to verify that required attributes are set during initialization.
+        def _set_id_field(self, id_field):
+            Helper method to set the ID field for the model.
     """
 
     model_type: type[BaseModelT]
@@ -315,9 +315,9 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         db_session: Session,
         db_object: ResultT | Sequence[ResultT] | None,
         *,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
         refresh_columns: list[str] | None = None,
     ) -> None:
         if auto_commit is True or (auto_commit is None and self.auto_commit):
@@ -341,9 +341,9 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         db_session: Session,
         db_object: BaseModelT,
         *,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
     ) -> BaseModelT:
         db_session.add(db_object)
         self._maybe_commit_or_flush_or_refresh_or_expunge(
@@ -361,8 +361,8 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         db_session: Session,
         db_object: BaseModelT,
         *,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
     ) -> None:
         db_session.delete(db_object)
         self._maybe_commit_or_flush_or_refresh_or_expunge(
@@ -378,10 +378,10 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         db_session: Session,
         id: Any,
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        auto_expunge: bool | None,
-        with_for_update: bool,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        auto_expunge: bool | None = None,
+        with_for_update: bool = False,
         auto_commit: bool | None = False,
     ) -> BaseModelT | None:
         current_loader_options = (
@@ -414,29 +414,32 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         db_session: Session,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
         with_for_update: bool = False,
-    ) -> Result[SelectT]:
+        is_scalar: bool = True,
+    ) -> Result[SelectT] | ScalarResult[Any]:
         statement = self._prepare_statement(
             statement=statement,
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
         )
-        return db_session.execute(statement)
+        res = db_session.execute(statement)
+        return res if not is_scalar else res.scalars()
 
     def _execute_returning_all(
         self,
         db_session: Session,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
-        with_for_update: bool,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
+        with_for_update: bool = False,
+        is_scalar: bool = True,
     ) -> Sequence[Any]:
         res = self._execute(
             db_session=db_session,
@@ -444,8 +447,9 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
+            is_scalar=is_scalar,
         )
-        db_objects: Sequence[Any] = res.scalars().all()
+        db_objects: Sequence[Any] = res.all()
         self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_objects,
@@ -460,12 +464,13 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         db_session: Session,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
-        with_for_update: bool,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
+        with_for_update: bool = False,
+        is_scalar: bool = True,
     ) -> Any:
         res = self._execute(
             db_session=db_session,
@@ -473,8 +478,9 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
+            is_scalar=is_scalar,
         )
-        db_object = res.scalar_one()
+        db_object = res.one()
         self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_object,
@@ -489,12 +495,13 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         db_session: Session,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
         with_for_update: bool = False,
+        is_scalar: bool = True,
     ) -> Any | None:
         res = self._execute(
             db_session=db_session,
@@ -502,8 +509,9 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
+            is_scalar=is_scalar,
         )
-        db_object = res.scalar_one_or_none()
+        db_object = res.one_or_none()
         self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_object,
@@ -542,9 +550,9 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         self,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        with_for_update: bool,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        with_for_update: bool = False,
     ) -> Select[SelectT]:
         current_loader_options = (
             loader_options if loader_options is not None else self.loader_options
