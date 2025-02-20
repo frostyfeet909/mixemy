@@ -3,6 +3,17 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 class BaseModel(DeclarativeBase):
+    """
+    BaseModel is an abstract base class for SQLAlchemy declarative models.
+
+    Methods:
+        __tablename__(cls) -> str:
+            Generates a table name for the model by converting the class name from CamelCase to snake_case.
+            Removes the suffix "_model" from the generated table name.
+        __repr__(self) -> str:
+            Returns a string representation of the model instance, including the class name and its attributes.
+    """
+
     __abstract__ = True
 
     @declared_attr  # pyright: ignore[reportArgumentType]

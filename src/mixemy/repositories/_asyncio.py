@@ -18,8 +18,8 @@ from mixemy.utils import unpack_schema
 
 
 class BaseAsyncRepository(Generic[BaseModelT], ABC):
-    """
-    Base asynchronous repository class providing CRUD operations for a given SQLAlchemy model.
+    """Base asynchronous repository class providing CRUD operations for a given SQLAlchemy model.
+
     Attributes:
         model_type (type[BaseModelT]): The SQLAlchemy model type.
         id_attribute (str | InstrumentedAttribute[Any]): The attribute used as the primary key. Defaults to "id".
