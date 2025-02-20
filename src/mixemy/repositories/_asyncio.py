@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import Any, Generic
 
-from sqlalchemy import Result, Select, func, select
+from sqlalchemy import Result, ScalarResult, Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.orm.strategy_options import (
@@ -316,9 +316,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         db_session: AsyncSession,
         db_object: ResultT | Sequence[ResultT] | None,
         *,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
         refresh_columns: list[str] | None = None,
     ) -> None:
         if auto_commit is True or (auto_commit is None and self.auto_commit):
@@ -342,9 +342,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         db_session: AsyncSession,
         db_object: BaseModelT,
         *,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
     ) -> BaseModelT:
         db_session.add(db_object)
         await self._maybe_commit_or_flush_or_refresh_or_expunge(
@@ -362,8 +362,8 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         db_session: AsyncSession,
         db_object: BaseModelT,
         *,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
     ) -> None:
         await db_session.delete(db_object)
         await self._maybe_commit_or_flush_or_refresh_or_expunge(
@@ -379,9 +379,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         db_session: AsyncSession,
         id: Any,
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        auto_expunge: bool | None,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        auto_expunge: bool | None = None,
         with_for_update: bool = False,
         auto_commit: bool | None = False,
     ) -> BaseModelT | None:
@@ -415,29 +415,32 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         db_session: AsyncSession,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
         with_for_update: bool = False,
-    ) -> Result[SelectT]:
+        is_scalar: bool = True,
+    ) -> Result[SelectT] | ScalarResult[Any]:
         statement = self._prepare_statement(
             statement=statement,
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
         )
-        return await db_session.execute(statement)
+        res = await db_session.execute(statement)
+        return res if not is_scalar else res.scalars()
 
     async def _execute_returning_all(
         self,
         db_session: AsyncSession,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
         with_for_update: bool = False,
+        is_scalar: bool = True,
     ) -> Sequence[Any]:
         res = await self._execute(
             db_session=db_session,
@@ -445,8 +448,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
+            is_scalar=is_scalar,
         )
-        db_objects: Sequence[Any] = res.scalars().all()
+        db_objects: Sequence[Any] = res.all()
         await self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_objects,
@@ -461,12 +465,13 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         db_session: AsyncSession,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
         with_for_update: bool = False,
+        is_scalar: bool = True,
     ) -> Any:
         res = await self._execute(
             db_session=db_session,
@@ -474,8 +479,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
+            is_scalar=is_scalar,
         )
-        db_object = res.scalar_one()
+        db_object = res.one()
         await self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_object,
@@ -490,12 +496,13 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         db_session: AsyncSession,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        auto_commit: bool | None,
-        auto_expunge: bool | None,
-        auto_refresh: bool | None,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        auto_commit: bool | None = None,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
         with_for_update: bool = False,
+        is_scalar: bool = True,
     ) -> Any | None:
         res = await self._execute(
             db_session=db_session,
@@ -503,8 +510,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             loader_options=loader_options,
             execution_options=execution_options,
             with_for_update=with_for_update,
+            is_scalar=is_scalar,
         )
-        db_object = res.scalar_one_or_none()
+        db_object = res.one_or_none()
         await self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_object,
@@ -543,9 +551,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         self,
         statement: Select[SelectT],
         *,
-        loader_options: tuple[_AbstractLoad] | None,
-        execution_options: dict[str, Any] | None,
-        with_for_update: bool,
+        loader_options: tuple[_AbstractLoad] | None = None,
+        execution_options: dict[str, Any] | None = None,
+        with_for_update: bool = False,
     ) -> Select[SelectT]:
         current_loader_options = (
             loader_options if loader_options is not None else self.loader_options
