@@ -1,8 +1,8 @@
 from abc import ABC
 from collections.abc import Sequence
-from typing import Any, Generic
+from typing import Any, Generic, Literal, overload
 
-from sqlalchemy import Result, ScalarResult, Select, func, select
+from sqlalchemy import Result, Row, ScalarResult, Select, func, select
 from sqlalchemy.orm import InstrumentedAttribute, Session
 from sqlalchemy.orm.strategy_options import (
     _AbstractLoad,  # pyright: ignore[reportPrivateUsage]
@@ -165,7 +165,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         statement = select(self.model)
         statement = self._add_filters(statement=statement, filters=filters)
         statement = self._add_pagination(statement=statement, filters=filters)
-        return self._execute_returning_all(
+        return self.execute_returning_all(
             db_session=db_session,
             statement=statement,
             loader_options=loader_options,
@@ -299,7 +299,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     ) -> int:
         statement = select(func.count()).select_from(self.model)
         statement = self._add_filters(statement=statement, filters=filters)
-        return self._execute_returning_one(
+        return self.execute_returning_one(
             db_session=db_session,
             statement=statement,
             loader_options=loader_options,
@@ -409,6 +409,30 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
         return db_object
 
+    @overload
+    def _execute(
+        self,
+        db_session: Session,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool = False,
+        is_scalar: Literal[False],
+    ) -> Result[SelectT]: ...
+
+    @overload
+    def _execute(
+        self,
+        db_session: Session,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool = False,
+        is_scalar: Literal[True] = True,
+    ) -> ScalarResult[Any]: ...
+
     def _execute(
         self,
         db_session: Session,
@@ -428,7 +452,37 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         res = db_session.execute(statement)
         return res if not is_scalar else res.scalars()
 
-    def _execute_returning_all(
+    @overload
+    def execute_returning_all(
+        self,
+        db_session: Session,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+    ) -> Sequence[SelectT]: ...
+
+    @overload
+    def execute_returning_all(
+        self,
+        db_session: Session,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[True] = True,
+    ) -> Sequence[Any]: ...
+
+    def execute_returning_all(
         self,
         db_session: Session,
         statement: Select[SelectT],
@@ -440,7 +494,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Sequence[Any]:
+    ) -> Sequence[SelectT] | Sequence[Any]:
         res = self._execute(
             db_session=db_session,
             statement=statement,
@@ -449,7 +503,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
             with_for_update=with_for_update,
             is_scalar=is_scalar,
         )
-        db_objects: Sequence[Any] = res.all()
+        db_objects = res.all()
         self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_objects,
@@ -459,7 +513,37 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         )
         return db_objects
 
-    def _execute_returning_one(
+    @overload
+    def execute_returning_one(
+        self,
+        db_session: Session,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[True] = True,
+    ) -> Any: ...
+
+    @overload
+    def execute_returning_one(
+        self,
+        db_session: Session,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+    ) -> Row[SelectT]: ...
+
+    def execute_returning_one(
         self,
         db_session: Session,
         statement: Select[SelectT],
@@ -471,7 +555,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Any:
+    ) -> Any | Row[SelectT]:
         res = self._execute(
             db_session=db_session,
             statement=statement,
@@ -490,7 +574,37 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         )
         return db_object
 
-    def _execute_returning_one_or_none(
+    @overload
+    def execute_returning_one_or_none(
+        self,
+        db_session: Session,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[True] = True,
+    ) -> Any | None: ...
+
+    @overload
+    def execute_returning_one_or_none(
+        self,
+        db_session: Session,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool = False,
+        is_scalar: Literal[False],
+    ) -> Row[SelectT] | None: ...
+
+    def execute_returning_one_or_none(
         self,
         db_session: Session,
         statement: Select[SelectT],
@@ -502,7 +616,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Any | None:
+    ) -> Row[SelectT] | Any | None:
         res = self._execute(
             db_session=db_session,
             statement=statement,
