@@ -116,6 +116,41 @@ class MixemyRepositoryError(MixemyError):
         super().__init__(message)
 
 
+class MixemyRepositoryPermissionError(MixemyRepositoryError):
+    """Exception raised when a user does not have the necessary permissions.
+
+    This exception is a subclass of MixemyRepositoryError and is raised when a user
+    does not have the necessary permissions to perform an operation.
+
+    Attributes:
+        repository (BaseSyncRepository[Any] | BaseAsyncRepository[Any]): The repository instance where the error occurred.
+        message (str): The error message.
+
+    Args:
+        repository (BaseSyncRepository[Any] | BaseAsyncRepository[Any]): The repository instance where the error occurred.
+        message (str): The error message.
+    """
+
+    def __init__(
+        self,
+        repository: "BaseSyncRepository[Any] | BaseAsyncRepository[Any]",
+        object_id: Any | None = None,
+        user_id: Any | None = None,
+        message: str | None = None,
+    ) -> None:
+        """Initialize the exception with the given repository and message.
+
+        Args:
+            repository (BaseSyncRepository[Any] | BaseAsyncRepository[Any]): The repository instance where the error occurred.
+            message (str): The error message.
+        """
+        if message is None:
+            message = f"User {user_id} does not have permission to access object {object_id} in repository {repository}."
+        self.object_id = object_id
+        self.user_id = user_id
+        super().__init__(repository=repository, message=message)
+
+
 class MixemyServiceError(MixemyError):
     """Exception raised for errors that occur within a Mixemy service.
 
@@ -266,6 +301,7 @@ __all__ = [
     "MixemyConversionError",
     "MixemyError",
     "MixemyRepositoryError",
+    "MixemyRepositoryPermissionError",
     "MixemyRepositorySetupError",
     "MixemyServiceError",
     "MixemyServiceSetupError",

@@ -68,6 +68,22 @@ class SingularSubItemModel(models.IdAuditModel):
     )
 
 
+class UserModel(models.IdAuditModel):
+    __table_args__ = {"extend_existing": True}  # noqa: RUF012
+
+    items: Mapped[list["PermissionItemModel"]] = relationship(
+        "PermissionItemModel", back_populates="user"
+    )
+
+
+class PermissionItemModel(models.IdAuditModel):
+    __table_args__ = {"extend_existing": True}  # noqa: RUF012
+    value: Mapped[str] = mapped_column(String)
+    user_id: Mapped[UUID] = mapped_column(SQLAUUID, ForeignKey("user.id"))
+
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="items")
+
+
 @pytest.fixture(scope="module")
 def item_model() -> type[ItemModel]:
     return ItemModel
@@ -91,6 +107,16 @@ def sub_item_model() -> type[SubItemModel]:
 @pytest.fixture(scope="module")
 def singular_sub_item_model() -> type[SingularSubItemModel]:
     return SingularSubItemModel
+
+
+@pytest.fixture(scope="module")
+def user_model() -> type[UserModel]:
+    return UserModel
+
+
+@pytest.fixture(scope="module")
+def permission_item_model() -> type[PermissionItemModel]:
+    return PermissionItemModel
 
 
 @pytest.fixture(scope="module")
@@ -157,3 +183,5 @@ def init_db(
     RecursiveItemModel.__table__.create(bind=engine)  # type: ignore - Only for testing
     SubItemModel.__table__.create(bind=engine)  # type: ignore - Only for testing
     SingularSubItemModel.__table__.create(bind=engine)  # type: ignore - Only for testing
+    UserModel.__table__.create(bind=engine)  # type: ignore - Only for testing
+    PermissionItemModel.__table__.create(bind=engine)  # type: ignore - Only for testing

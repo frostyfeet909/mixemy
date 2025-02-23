@@ -2,15 +2,13 @@ from abc import ABC
 from typing import Any, Generic
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.strategy_options import (
-    _AbstractLoad,  # pyright: ignore[reportPrivateUsage]
-)
 
 from mixemy.exceptions import MixemyServiceSetupError
 from mixemy.models import BaseModel
 from mixemy.schemas import InputSchema
 from mixemy.types import (
     OutputSchemaT,
+    PermissionAsyncRepositoryT,
     RepositoryAsyncT,
 )
 from mixemy.utils import to_model, to_schema
@@ -94,42 +92,37 @@ class BaseAsyncService(
         object_in: InputSchema,
         *,
         recursive_model_conversion: bool | None = None,
-        auto_expunge: bool | None = None,
-        auto_refresh: bool | None = None,
-        auto_commit: bool | None = None,
+        schema_exclude_unset: bool | None = None,
+        schema_exclude: set[str] | None = None,
+        schema_by_alias: bool | None = None,
+        **kwargs: Any,
     ) -> OutputSchemaT:
-        return self._to_schema(
+        return self.to_schema(
             model=await self.repository.create(
                 db_session=self.db_session,
-                db_object=self._to_model(
+                db_object=self.to_model(
                     schema=object_in,
                     recursive_model_conversion=recursive_model_conversion,
+                    by_alias=schema_by_alias,
+                    exclude_unset=schema_exclude_unset,
+                    exclude=schema_exclude,
                 ),
-                auto_expunge=auto_expunge,
-                auto_refresh=auto_refresh,
-                auto_commit=auto_commit,
-            )
+                **kwargs,
+            ),
         )
 
     async def read(
         self,
         id: Any,
-        *,
-        loader_options: tuple[_AbstractLoad] | None = None,
-        execution_options: dict[str, Any] | None = None,
-        auto_expunge: bool | None = None,
-        auto_commit: bool | None = None,
+        **kwargs: Any,
     ) -> OutputSchemaT | None:
         return (
-            self._to_schema(model=model)
+            self.to_schema(model=model)
             if (
                 model := await self.repository.read(
                     db_session=self.db_session,
                     id=id,
-                    loader_options=loader_options,
-                    execution_options=execution_options,
-                    auto_expunge=auto_expunge,
-                    auto_commit=auto_commit,
+                    **kwargs,
                 )
             )
             else None
@@ -138,21 +131,14 @@ class BaseAsyncService(
     async def read_multiple(
         self,
         filters: InputSchema | None = None,
-        *,
-        loader_options: tuple[_AbstractLoad] | None = None,
-        execution_options: dict[str, Any] | None = None,
-        auto_expunge: bool | None = None,
-        auto_commit: bool | None = None,
+        **kwargs: Any,
     ) -> list[OutputSchemaT]:
         return [
-            self._to_schema(model=model)
+            self.to_schema(model=model)
             for model in await self.repository.read_multiple(
                 db_session=self.db_session,
                 filters=filters,
-                loader_options=loader_options,
-                execution_options=execution_options,
-                auto_expunge=auto_expunge,
-                auto_commit=auto_commit,
+                **kwargs,
             )
         ]
 
@@ -160,25 +146,16 @@ class BaseAsyncService(
         self,
         id: Any,
         object_in: InputSchema,
-        *,
-        loader_options: tuple[_AbstractLoad] | None = None,
-        execution_options: dict[str, Any] | None = None,
-        auto_expunge: bool | None = None,
-        auto_refresh: bool | None = None,
-        auto_commit: bool | None = None,
+        **kwargs: Any,
     ) -> OutputSchemaT | None:
         return (
-            self._to_schema(model)
+            self.to_schema(model)
             if (
                 model := await self.repository.update(
                     db_session=self.db_session,
                     id=id,
                     object_in=object_in,
-                    loader_options=loader_options,
-                    execution_options=execution_options,
-                    auto_expunge=auto_expunge,
-                    auto_refresh=auto_refresh,
-                    auto_commit=auto_commit,
+                    **kwargs,
                 )
             )
             else None
@@ -187,22 +164,15 @@ class BaseAsyncService(
     async def delete(
         self,
         id: Any,
-        *,
-        loader_options: tuple[_AbstractLoad] | None = None,
-        execution_options: dict[str, Any] | None = None,
-        auto_expunge: bool | None = None,
-        auto_commit: bool | None = None,
+        **kwargs: Any,
     ) -> None:
         await self.repository.delete(
             db_session=self.db_session,
             id=id,
-            auto_expunge=auto_expunge,
-            auto_commit=auto_commit,
-            loader_options=loader_options,
-            execution_options=execution_options,
+            **kwargs,
         )
 
-    def _to_model(
+    def to_model(
         self,
         schema: InputSchema,
         *,
@@ -230,10 +200,112 @@ class BaseAsyncService(
             by_alias=current_by_alias,
         )
 
-    def _to_schema(self, model: BaseModel) -> OutputSchemaT:
+    def to_schema(self, model: BaseModel) -> OutputSchemaT:
         return to_schema(model=model, schema=self.output_schema)
 
     def _verify_init(self) -> None:
         for field in ["output_schema_type", "repository_type"]:
             if not hasattr(self, field):
                 raise MixemyServiceSetupError(service=self, undefined_field=field)
+
+
+class PermissionAsyncService(
+    BaseAsyncService[PermissionAsyncRepositoryT, OutputSchemaT]
+):
+    """Service for performing asynchronous operations on Permission objects.
+
+    This class provides methods for creating, reading, updating, and deleting
+    Permission objects using asynchronous methods. It is designed to work with
+    SQLAlchemy's AsyncSession and the PermissionAsyncRepository.
+    Methods:
+        __init__(db_session: AsyncSession) -> None:
+            Initializes the service with the given database session.
+    """
+
+    repository_type: type[PermissionAsyncRepositoryT]
+
+    def __init__(
+        self,
+        db_session: AsyncSession,
+        *,
+        recursive_model_conversion: bool | None = None,
+        exclude_unset: bool | None = None,
+        exclude: set[str] | None = None,
+        by_alias: bool | None = None,
+    ) -> None:
+        super().__init__(
+            db_session=db_session,
+            recursive_model_conversion=recursive_model_conversion,
+            exclude_unset=exclude_unset,
+            exclude=exclude,
+            by_alias=by_alias,
+        )
+
+    async def read_with_permission(
+        self,
+        id: Any,
+        user_id: Any,
+        **kwargs: Any,
+    ) -> OutputSchemaT | None:
+        return (
+            self.to_schema(model=model)
+            if (
+                model := await self.repository.read_with_permission(
+                    db_session=self.db_session,
+                    id=id,
+                    user_id=user_id,
+                    **kwargs,
+                )
+            )
+            else None
+        )
+
+    async def read_multiple_with_permission(
+        self,
+        user_id: Any,
+        filters: InputSchema | None = None,
+        **kwargs: Any,
+    ) -> list[OutputSchemaT]:
+        return [
+            self.to_schema(model=model)
+            for model in await self.repository.read_multiple_with_permission(
+                db_session=self.db_session,
+                user_id=user_id,
+                filters=filters,
+                **kwargs,
+            )
+        ]
+
+    async def update_with_permission(
+        self,
+        id: Any,
+        object_in: InputSchema,
+        user_id: Any,
+        **kwargs: Any,
+    ) -> OutputSchemaT | None:
+        return (
+            self.to_schema(model)
+            if (
+                model := await self.repository.update_with_permission(
+                    db_session=self.db_session,
+                    id=id,
+                    user_id=user_id,
+                    object_in=object_in,
+                    **kwargs,
+                )
+            )
+            else None
+        )
+
+    async def delete_with_permission(
+        self,
+        id: Any,
+        user_id: Any,
+        **kwargs: Any,
+    ) -> None:
+        await self.repository.delete_with_permission(
+            db_session=self.db_session,
+            id=id,
+            user_id=user_id,
+            **kwargs,
+        )

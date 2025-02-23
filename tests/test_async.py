@@ -40,7 +40,7 @@ async def test_main(
         value: str
 
     class ItemRepository(repositories.BaseAsyncRepository[AsyncItemModel]):
-        model_type = AsyncItemModel
+        model = AsyncItemModel
 
     class ItemService(services.BaseAsyncService[ItemRepository, ItemOutput]):
         repository_type = ItemRepository

@@ -7,10 +7,12 @@ __all__:
     A list of public objects of this module, as interpreted by `import *`.
 """
 
-from ._asyncio import BaseAsyncService
-from ._sync import BaseSyncService
+from ._asyncio import BaseAsyncService, PermissionAsyncService
+from ._sync import BaseSyncService, PermissionSyncService
 
 __all__ = [
     "BaseAsyncService",
     "BaseSyncService",
+    "PermissionAsyncService",
+    "PermissionSyncService",
 ]
