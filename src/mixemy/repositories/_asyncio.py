@@ -1,8 +1,8 @@
 from abc import ABC
 from collections.abc import Sequence
-from typing import Any, Generic
+from typing import Any, Generic, Literal, overload
 
-from sqlalchemy import Result, ScalarResult, Select, func, select
+from sqlalchemy import Result, Row, ScalarResult, Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.orm.strategy_options import (
@@ -166,7 +166,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         statement = select(self.model)
         statement = self._add_filters(statement=statement, filters=filters)
         statement = self._add_pagination(statement=statement, filters=filters)
-        return await self._execute_returning_all(
+        return await self.execute_returning_all(
             db_session=db_session,
             statement=statement,
             loader_options=loader_options,
@@ -300,7 +300,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     ) -> int:
         statement = select(func.count()).select_from(self.model)
         statement = self._add_filters(statement=statement, filters=filters)
-        return await self._execute_returning_one(
+        return await self.execute_returning_one(
             db_session=db_session,
             statement=statement,
             loader_options=loader_options,
@@ -410,6 +410,30 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
         return db_object
 
+    @overload
+    async def _execute(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool = False,
+        is_scalar: Literal[False],
+    ) -> Result[SelectT]: ...
+
+    @overload
+    async def _execute(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool = False,
+        is_scalar: Literal[True] = True,
+    ) -> ScalarResult[Any]: ...
+
     async def _execute(
         self,
         db_session: AsyncSession,
@@ -429,7 +453,37 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         res = await db_session.execute(statement)
         return res if not is_scalar else res.scalars()
 
-    async def _execute_returning_all(
+    @overload
+    async def execute_returning_all(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+    ) -> Sequence[SelectT]: ...
+
+    @overload
+    async def execute_returning_all(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[True] = True,
+    ) -> Sequence[Any]: ...
+
+    async def execute_returning_all(
         self,
         db_session: AsyncSession,
         statement: Select[SelectT],
@@ -441,7 +495,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Sequence[Any]:
+    ) -> Sequence[SelectT] | Sequence[Any]:
         res = await self._execute(
             db_session=db_session,
             statement=statement,
@@ -450,7 +504,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             with_for_update=with_for_update,
             is_scalar=is_scalar,
         )
-        db_objects: Sequence[Any] = res.all()
+        db_objects = res.all()
         await self._maybe_commit_or_flush_or_refresh_or_expunge(
             db_session=db_session,
             db_object=db_objects,
@@ -460,7 +514,37 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         )
         return db_objects
 
-    async def _execute_returning_one(
+    @overload
+    async def execute_returning_one(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[True] = True,
+    ) -> Any: ...
+
+    @overload
+    async def execute_returning_one(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+    ) -> Row[SelectT]: ...
+
+    async def execute_returning_one(
         self,
         db_session: AsyncSession,
         statement: Select[SelectT],
@@ -472,7 +556,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Any:
+    ) -> Any | Row[SelectT]:
         res = await self._execute(
             db_session=db_session,
             statement=statement,
@@ -491,7 +575,37 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         )
         return db_object
 
-    async def _execute_returning_one_or_none(
+    @overload
+    async def execute_returning_one_or_none(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[True] = True,
+    ) -> Any | None: ...
+
+    @overload
+    async def execute_returning_one_or_none(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT],
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool = False,
+        is_scalar: Literal[False],
+    ) -> Row[SelectT] | None: ...
+
+    async def execute_returning_one_or_none(
         self,
         db_session: AsyncSession,
         statement: Select[SelectT],
@@ -503,7 +617,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Any | None:
+    ) -> Row[SelectT] | Any | None:
         res = await self._execute(
             db_session=db_session,
             statement=statement,

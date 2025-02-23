@@ -27,8 +27,8 @@ pydantic = "^2.0"
 uuid-utils = "^0.10"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.9.1"
-pyright = "1.1.391"
+ruff = "0.9.7"
+pyright = "1.1.394"
 pytest = "^8.3.4"
 pre-commit = "^4.0.1"
 testcontainers = "^4.9.0"
@@ -51,7 +51,7 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "E501", "A002", "ERA001", "T20", "FBT001", "FBT002", "ANN401", "PLR0913",
+    "E501", "A002", "ERA001", "T20", "FBT001", "FBT002", "ANN401", "PLR0913", "A005",
     "W191", "E111", "E114", "E117", "D206", "D300", "Q000", "Q001", "Q002", "Q003", "COM812", "COM819", "ISC001", "ISC002"  # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
     ]
 fixable = ["ALL"]
