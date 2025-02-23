@@ -1,9 +1,10 @@
 from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy.exc import ArgumentError
 from sqlalchemy.inspection import inspect
 
-from mixemy._exceptions import MixemyConversionError
+from mixemy.exceptions import MixemyConversionError
 from mixemy.models import BaseModel
 from mixemy.schemas import BaseSchema
 from mixemy.types import BaseModelT, BaseSchemaT
@@ -80,7 +81,7 @@ def to_model(
 def to_schema(model: BaseModel, schema: type[BaseSchemaT]) -> BaseSchemaT:
     try:
         return schema.model_validate(model)
-    except ValueError as ex:
+    except ValidationError as ex:
         raise MixemyConversionError(
             model=model, schema=schema, is_model_to_schema=True
         ) from ex

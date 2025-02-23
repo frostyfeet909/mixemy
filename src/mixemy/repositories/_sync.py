@@ -9,15 +9,15 @@ from sqlalchemy.orm.strategy_options import (
 )
 from sqlalchemy.util import EMPTY_DICT
 
-from mixemy._exceptions import MixemyRepositorySetupError
+from mixemy.exceptions import MixemyRepositorySetupError
 from mixemy.schemas import InputSchema
 from mixemy.schemas.paginations import PaginationFields, PaginationFilter
-from mixemy.types import BaseModelT, ResultT, SelectT
+from mixemy.types import BaseModelT, SelectT
 from mixemy.utils import unpack_schema
 
 
 class BaseSyncRepository(Generic[BaseModelT], ABC):
-    """Base asynchronous repository class providing CRUD operations for a given SQLAlchemy model.
+    """Base synchronous repository class providing CRUD operations for a given SQLAlchemy model.
 
     Attributes:
         model_type (type[BaseModelT]): The SQLAlchemy model type.
@@ -31,21 +31,21 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         __init__(self, *, loader_options=None, execution_options=None, auto_expunge=False, auto_refresh=True, auto_commit=False):
             Initializes the repository with optional custom settings.
         create(self, db_session, db_object, *, auto_commit=None, auto_expunge=None, auto_refresh=None):
-            Asynchronously creates a new object in the database.
+            Synchronously creates a new object in the database.
         read(self, db_session, id, *, loader_options=None, execution_options=None, auto_expunge=None, auto_commit=False, with_for_update=False):
-            Asynchronously reads an object from the database by its ID.
+            Synchronously reads an object from the database by its ID.
         read_multiple(self, db_session, filters=None, *, loader_options=None, execution_options=None, auto_commit=False, auto_expunge=None, with_for_update=False):
-            Asynchronously reads multiple objects from the database based on filters.
+            Synchronously reads multiple objects from the database based on filters.
         update(self, db_session, id, object_in, *, loader_options=None, execution_options=None, auto_commit=None, auto_expunge=None, auto_refresh=None, with_for_update=True):
-            Asynchronously updates an object in the database by its ID.
+            Synchronously updates an object in the database by its ID.
         update_db_object(self, db_session, db_object, object_in, *, auto_commit=None, auto_expunge=None, auto_refresh=None):
-            Asynchronously updates an existing database object.
+            Synchronously updates an existing database object.
         delete(self, db_session, id, *, loader_options=None, execution_options=None, auto_commit=None, auto_expunge=None, with_for_update=False):
-            Asynchronously deletes an object from the database by its ID.
+            Synchronously deletes an object from the database by its ID.
         delete_db_object(self, db_session, db_object, *, auto_commit=None, auto_expunge=None):
-            Asynchronously deletes an existing database object.
+            Synchronously deletes an existing database object.
         count(self, db_session, filters=None, *, loader_options=None, execution_options=None, auto_commit=False):
-            Asynchronously counts the number of objects in the database based on filters.
+            Synchronously counts the number of objects in the database based on filters.
         _maybe_commit_or_flush_or_refresh_or_expunge(self, db_session, db_object, *, auto_commit, auto_expunge, auto_refresh):
             Helper method to commit, flush, refresh, or expunge objects from the session based on settings.
         _add(self, db_session, db_object, *, auto_commit, auto_expunge, auto_refresh):
@@ -313,7 +313,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     def _maybe_commit_or_flush_or_refresh_or_expunge(
         self,
         db_session: Session,
-        db_object: ResultT | Sequence[ResultT] | None,
+        db_object: Sequence[object] | object | None,
         *,
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
@@ -326,7 +326,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
             db_session.flush()
 
         if db_object is not None:
-            instances: Sequence[ResultT] = (
+            instances: Sequence[Any] = (
                 db_object if isinstance(db_object, Sequence) else [db_object]
             )
             if auto_refresh is True or (auto_refresh is None and self.auto_refresh):

@@ -6,7 +6,7 @@ from sqlalchemy.orm.strategy_options import (
     _AbstractLoad,  # pyright: ignore[reportPrivateUsage]
 )
 
-from mixemy._exceptions import MixemyServiceSetupError
+from mixemy.exceptions import MixemyServiceSetupError
 from mixemy.models import BaseModel
 from mixemy.schemas import InputSchema
 from mixemy.types import (
