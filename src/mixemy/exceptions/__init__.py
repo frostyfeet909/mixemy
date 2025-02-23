@@ -13,8 +13,6 @@ Classes:
 
 from typing import TYPE_CHECKING, Any
 
-from pydantic import ValidationError
-
 if TYPE_CHECKING:
     from mixemy.models import BaseModel
     from mixemy.repositories import BaseAsyncRepository, BaseSyncRepository
@@ -42,7 +40,7 @@ class MixemyError(Exception):
         Exception.__init__(self, message)
 
 
-class MixemyConversionError(MixemyError, ValidationError):
+class MixemyConversionError(MixemyError):
     """Exception raised for errors in the conversion between a model and a schema.
 
     Attributes:
@@ -82,7 +80,6 @@ class MixemyConversionError(MixemyError, ValidationError):
         self.model = model
         self.schema = schema
         MixemyError.__init__(self, message)
-        ValidationError.__init__(self, message)
 
 
 class MixemyRepositoryError(MixemyError):
