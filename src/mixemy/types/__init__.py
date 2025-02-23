@@ -29,7 +29,12 @@ from ._schemas import (
     OutputSchemaT,
     UpdateSchemaT,
 )
-from ._services import RepositoryAsyncT, RepositorySyncT
+from ._services import (
+    PermissionAsyncRepositoryT,
+    PermissionSyncRepositoryT,
+    RepositoryAsyncT,
+    RepositorySyncT,
+)
 
 __all__ = [
     "BaseModelT",
@@ -37,6 +42,8 @@ __all__ = [
     "CreateSchemaT",
     "FilterSchemaT",
     "OutputSchemaT",
+    "PermissionAsyncRepositoryT",
+    "PermissionSyncRepositoryT",
     "RepositoryAsyncT",
     "RepositorySyncT",
     "SelectT",

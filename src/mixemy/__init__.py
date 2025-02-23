@@ -23,8 +23,18 @@ from importlib import metadata
 
 from . import exceptions, models, repositories, schemas, utils
 from .models import BaseModel, IdAuditModel
-from .repositories import BaseAsyncRepository, BaseSyncRepository
-from .services import BaseAsyncService, BaseSyncService
+from .repositories import (
+    BaseAsyncRepository,
+    BaseSyncRepository,
+    PermissionAsyncRepository,
+    PermissionSyncRepository,
+)
+from .services import (
+    BaseAsyncService,
+    BaseSyncService,
+    PermissionAsyncService,
+    PermissionSyncService,
+)
 
 __all__ = [
     "BaseAsyncRepository",
@@ -33,6 +43,10 @@ __all__ = [
     "BaseSyncRepository",
     "BaseSyncService",
     "IdAuditModel",
+    "PermissionAsyncRepository",
+    "PermissionAsyncService",
+    "PermissionSyncRepository",
+    "PermissionSyncService",
     "exceptions",
     "models",
     "repositories",

@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy.orm import Session
+from uuid_utils.compat import UUID
 
 if TYPE_CHECKING:
     from mixemy.models import IdAuditModel
@@ -51,7 +52,7 @@ def test_main(
         nullable_value: str | None
 
     class ItemRepository(repositories.BaseSyncRepository[ItemModel]):
-        model_type = ItemModel
+        model = ItemModel
 
     class ItemService(services.BaseSyncService[ItemRepository, ItemOutput]):
         repository_type = ItemRepository
@@ -154,7 +155,7 @@ def test_recursive_model(
         singular_sub_item: SingularSubItemOutput
 
     class ItemRepository(repositories.BaseSyncRepository[RecursiveItemModel]):
-        model_type = RecursiveItemModel
+        model = RecursiveItemModel
 
     class ItemService(
         services.BaseSyncService[
@@ -185,3 +186,103 @@ def test_recursive_model(
     assert item.sub_items[0].value == "sub_item_one"
     assert item.sub_items[1].value == "sub_item_two"
     assert item.singular_sub_item.value == "singular_sub_item"
+
+
+def test_permission_model(
+    session: Session,
+    init_db: None,
+    permission_item_model: "type[IdAuditModel]",
+    user_model: "type[IdAuditModel]",
+) -> None:
+    """Test the permission model functionality.
+
+    This test verifies the creation and retrieval of permission items using the provided session
+    and database initialization.
+
+    Args:
+        session (Session): The database session to use for the test.
+        init_db (None): A fixture to initialize the database.
+        permission_item_model (type[IdAuditModel]): The permission item model type.
+        user_model (type[IdAuditModel]): The user model type.
+    """
+    from mixemy import exceptions, repositories, schemas, services
+
+    PermissionItemModel = permission_item_model
+
+    class ItemInput(schemas.InputSchema):
+        value: str
+        user_id: UUID
+
+    class ItemOutput(schemas.IdAuditOutputSchema):
+        value: str
+
+    class UserRepository(repositories.BaseSyncRepository[user_model]):
+        model = user_model
+
+    class UserService(
+        services.BaseSyncService[UserRepository, schemas.IdAuditOutputSchema]
+    ):
+        repository_type = UserRepository
+        output_schema_type = schemas.IdAuditOutputSchema
+
+    class ItemRepository(repositories.PermissionSyncRepository[PermissionItemModel]):
+        model = PermissionItemModel
+
+    class ItemService(services.PermissionSyncService[ItemRepository, ItemOutput]):
+        repository_type = ItemRepository
+        output_schema_type = ItemOutput
+
+    item_service = ItemService(db_session=session)
+    user_service = UserService(db_session=session)
+
+    user_one = user_service.create(object_in=schemas.InputSchema())
+    user_two = user_service.create(object_in=schemas.InputSchema())
+
+    test_one = ItemInput(value="test_one", user_id=user_one.id)
+    test_two = ItemInput(value="test_two", user_id=user_one.id)
+    test_three = ItemInput(value="test_three", user_id=user_two.id)
+
+    created_item_one = item_service.create(object_in=test_one)
+    item_service.create(object_in=test_two)
+    item_service.create(object_in=test_three)
+
+    assert created_item_one.value == "test_one"
+
+    all_created_items = item_service.read_multiple_with_permission(user_id=user_one.id)
+
+    assert len(all_created_items) == 2
+
+    with pytest.raises(exceptions.MixemyRepositoryPermissionError):
+        item_service.delete_with_permission(
+            id=created_item_one.id, user_id=test_three.user_id
+        )
+
+    with pytest.raises(exceptions.MixemyRepositoryPermissionError):
+        item_service.update_with_permission(
+            id=created_item_one.id, object_in=test_one, user_id=test_three.user_id
+        )
+
+    assert (
+        item_service.read_with_permission(
+            id=created_item_one.id, user_id=test_three.user_id
+        )
+        is None
+    )
+
+    assert (
+        item_service.read_with_permission(
+            id=created_item_one.id, user_id=test_one.user_id
+        )
+        == created_item_one
+    )
+
+    item_service.delete_with_permission(
+        id=created_item_one.id, user_id=test_one.user_id
+    )
+
+    assert (
+        item_service.read_with_permission(
+            id=created_item_one.id, user_id=test_one.user_id
+        )
+        is None
+    )
