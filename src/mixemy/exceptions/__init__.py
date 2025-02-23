@@ -39,7 +39,7 @@ class MixemyError(Exception):
             message (str): The error message to be associated with this exception.
         """
         self.message = message
-        super().__init__(message)
+        Exception.__init__(self, message)
 
 
 class MixemyConversionError(MixemyError, ValidationError):
@@ -113,7 +113,7 @@ class MixemyRepositoryError(MixemyError):
         if message is None:
             message = f"Error with repository {repository}."
         self.repository = repository
-        super().__init__(message)
+        MixemyError.__init__(self, message)
 
 
 class MixemyServiceError(MixemyError):
@@ -146,7 +146,7 @@ class MixemyServiceError(MixemyError):
         if message is None:
             message = f"Error with service {service}."
         self.service = service
-        super().__init__(message)
+        MixemyError.__init__(self, message)
 
 
 class MixemySetupError(MixemyError):
@@ -182,7 +182,7 @@ class MixemySetupError(MixemyError):
         if message is None:
             message = f"{component.__class__.__name__.capitalize()} {component} has undefined field '{undefined_field}'.\nThis probably needs to be defined as a class attribute."
         self.undefined_field = undefined_field
-        super().__init__(message=message)
+        MixemyError.__init__(self, message)
 
 
 class MixemyRepositorySetupError(MixemySetupError, MixemyRepositoryError):
