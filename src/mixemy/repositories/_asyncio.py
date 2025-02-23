@@ -10,10 +10,10 @@ from sqlalchemy.orm.strategy_options import (
 )
 from sqlalchemy.util import EMPTY_DICT
 
-from mixemy._exceptions import MixemyRepositorySetupError
+from mixemy.exceptions import MixemyRepositorySetupError
 from mixemy.schemas import InputSchema
 from mixemy.schemas.paginations import PaginationFields, PaginationFilter
-from mixemy.types import BaseModelT, ResultT, SelectT
+from mixemy.types import BaseModelT, SelectT
 from mixemy.utils import unpack_schema
 
 
@@ -314,7 +314,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     async def _maybe_commit_or_flush_or_refresh_or_expunge(
         self,
         db_session: AsyncSession,
-        db_object: ResultT | Sequence[ResultT] | None,
+        db_object: Sequence[object] | object | None,
         *,
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
@@ -327,7 +327,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             await db_session.flush()
 
         if db_object is not None:
-            instances: Sequence[ResultT] = (
+            instances: Sequence[Any] = (
                 db_object if isinstance(db_object, Sequence) else [db_object]
             )
             if auto_refresh is True or (auto_refresh is None and self.auto_refresh):

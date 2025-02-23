@@ -1,8 +1,9 @@
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
-    from mixemy.repositories import BaseAsyncRepository, BaseSyncRepository
+    from typing import Any
 
+    from mixemy.repositories import BaseAsyncRepository, BaseSyncRepository
 
 RepositorySyncT = TypeVar("RepositorySyncT", bound="BaseSyncRepository[Any]")
 RepositoryAsyncT = TypeVar("RepositoryAsyncT", bound="BaseAsyncRepository[Any]")

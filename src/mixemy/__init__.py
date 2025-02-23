@@ -21,7 +21,7 @@ Attributes:
 
 from importlib import metadata
 
-from . import models, repositories, schemas, utils
+from . import exceptions, models, repositories, schemas, utils
 from .models import BaseModel, IdAuditModel
 from .repositories import BaseAsyncRepository, BaseSyncRepository
 from .services import BaseAsyncService, BaseSyncService
@@ -33,6 +33,7 @@ __all__ = [
     "BaseSyncRepository",
     "BaseSyncService",
     "IdAuditModel",
+    "exceptions",
     "models",
     "repositories",
     "schemas",
