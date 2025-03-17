@@ -2,7 +2,17 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import Any, Generic, Literal, overload
 
-from sqlalchemy import Result, Row, ScalarResult, Select, func, select
+from sqlalchemy import (
+    CursorResult,
+    Delete,
+    Result,
+    Row,
+    ScalarResult,
+    Select,
+    Update,
+    func,
+    select,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.orm.strategy_options import (
@@ -426,7 +436,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     async def _execute(
         self,
         db_session: AsyncSession,
-        statement: Select[SelectT],
+        statement: Select[SelectT] | Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
@@ -435,17 +445,30 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_commit: bool | None,
     ) -> ScalarResult[Any]: ...
 
+    @overload
     async def _execute(
         self,
         db_session: AsyncSession,
-        statement: Select[SelectT],
+        statement: Delete | Update,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+        auto_commit: bool | None,
+    ) -> CursorResult[Any]: ...
+
+    async def _execute(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT] | Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
         auto_commit: bool | None = False,
-    ) -> Result[SelectT] | ScalarResult[Any]:
+    ) -> Result[SelectT] | ScalarResult[Any] | CursorResult[Any]:
         statement = self._prepare_statement(
             statement=statement,
             loader_options=loader_options,
@@ -483,7 +506,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     async def execute_returning_all(
         self,
         db_session: AsyncSession,
-        statement: Select[SelectT],
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
@@ -494,10 +517,25 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         is_scalar: Literal[True] = True,
     ) -> Sequence[Any]: ...
 
+    @overload
     async def execute_returning_all(
         self,
         db_session: AsyncSession,
-        statement: Select[SelectT],
+        statement: Update | Delete,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+    ) -> Sequence[Row[Any]]: ...
+
+    async def execute_returning_all(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -506,7 +544,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Sequence[SelectT] | Sequence[Any]:
+    ) -> Sequence[SelectT] | Sequence[Any] | Sequence[Row[Any]]:
         res = await self._execute(
             db_session=db_session,
             statement=statement,
@@ -530,7 +568,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     async def execute_returning_one(
         self,
         db_session: AsyncSession,
-        statement: Select[SelectT],
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
@@ -556,10 +594,25 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         is_scalar: Literal[False],
     ) -> Row[SelectT]: ...
 
+    @overload
     async def execute_returning_one(
         self,
         db_session: AsyncSession,
-        statement: Select[SelectT],
+        statement: Update | Delete,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+    ) -> Row[Any]: ...
+
+    async def execute_returning_one(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -568,7 +621,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Any | Row[SelectT]:
+    ) -> Any | Row[SelectT] | Row[Any]:
         res = await self._execute(
             db_session=db_session,
             statement=statement,
@@ -592,7 +645,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     async def execute_returning_one_or_none(
         self,
         db_session: AsyncSession,
-        statement: Select[SelectT],
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
@@ -618,10 +671,25 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         is_scalar: Literal[False],
     ) -> Row[SelectT] | None: ...
 
+    @overload
     async def execute_returning_one_or_none(
         self,
         db_session: AsyncSession,
-        statement: Select[SelectT],
+        statement: Update | Delete,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool = False,
+        is_scalar: Literal[False],
+    ) -> Row[Any] | None: ...
+
+    async def execute_returning_one_or_none(
+        self,
+        db_session: AsyncSession,
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -630,7 +698,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Row[SelectT] | Any | None:
+    ) -> Row[SelectT] | Row[Any] | Any | None:
         res = await self._execute(
             db_session=db_session,
             statement=statement,
@@ -658,9 +726,20 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
         return statement
 
+    @overload
     def add_filters(
         self, statement: Select[SelectT], filters: InputSchema | None
-    ) -> Select[SelectT]:
+    ) -> Select[SelectT]: ...
+
+    @overload
+    def add_filters(self, statement: Update, filters: InputSchema | None) -> Update: ...
+
+    @overload
+    def add_filters(self, statement: Delete, filters: InputSchema | None) -> Delete: ...
+
+    def add_filters(
+        self, statement: Select[SelectT] | Update | Delete, filters: InputSchema | None
+    ) -> Select[SelectT] | Update | Delete:
         if filters is not None:
             for item, value in unpack_schema(
                 schema=filters, exclude=PaginationFields
@@ -675,14 +754,44 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
         return statement
 
+    @overload
     def _prepare_statement(
         self,
         statement: Select[SelectT],
         *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool,
+    ) -> Select[SelectT]: ...
+
+    @overload
+    def _prepare_statement(
+        self,
+        statement: Update,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool,
+    ) -> Update: ...
+
+    @overload
+    def _prepare_statement(
+        self,
+        statement: Delete,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool,
+    ) -> Delete: ...
+
+    def _prepare_statement(
+        self,
+        statement: Select[SelectT] | Update | Delete,
+        *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
         with_for_update: bool = False,
-    ) -> Select[SelectT]:
+    ) -> Select[SelectT] | Update | Delete:
         current_loader_options = (
             loader_options if loader_options is not None else self.loader_options
         )
@@ -697,7 +806,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         if current_execution_options is not None:
             statement = statement.execution_options(**current_execution_options)
 
-        if with_for_update:
+        if with_for_update and isinstance(statement, Select):
             statement = statement.with_for_update()
 
         return statement
