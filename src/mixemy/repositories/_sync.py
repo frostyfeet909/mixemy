@@ -2,7 +2,17 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import Any, Generic, Literal, overload
 
-from sqlalchemy import Result, Row, ScalarResult, Select, func, select
+from sqlalchemy import (
+    CursorResult,
+    Delete,
+    Result,
+    Row,
+    ScalarResult,
+    Select,
+    Update,
+    func,
+    select,
+)
 from sqlalchemy.orm import InstrumentedAttribute, Session
 from sqlalchemy.orm.strategy_options import (
     _AbstractLoad,  # pyright: ignore[reportPrivateUsage]
@@ -425,7 +435,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     def _execute(
         self,
         db_session: Session,
-        statement: Select[SelectT],
+        statement: Select[SelectT] | Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
@@ -434,17 +444,30 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         auto_commit: bool | None,
     ) -> ScalarResult[Any]: ...
 
+    @overload
     def _execute(
         self,
         db_session: Session,
-        statement: Select[SelectT],
+        statement: Delete | Update,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+        auto_commit: bool | None,
+    ) -> CursorResult[Any]: ...
+
+    def _execute(
+        self,
+        db_session: Session,
+        statement: Select[SelectT] | Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
         auto_commit: bool | None = False,
-    ) -> Result[SelectT] | ScalarResult[Any]:
+    ) -> Result[SelectT] | ScalarResult[Any] | CursorResult[Any]:
         statement = self._prepare_statement(
             statement=statement,
             loader_options=loader_options,
@@ -482,7 +505,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     def execute_returning_all(
         self,
         db_session: Session,
-        statement: Select[SelectT],
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
@@ -493,10 +516,25 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         is_scalar: Literal[True] = True,
     ) -> Sequence[Any]: ...
 
+    @overload
     def execute_returning_all(
         self,
         db_session: Session,
-        statement: Select[SelectT],
+        statement: Update | Delete,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+    ) -> Sequence[Row[Any]]: ...
+
+    def execute_returning_all(
+        self,
+        db_session: Session,
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -505,7 +543,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Sequence[SelectT] | Sequence[Any]:
+    ) -> Sequence[SelectT] | Sequence[Any] | Sequence[Row[Any]]:
         res = self._execute(
             db_session=db_session,
             statement=statement,
@@ -529,7 +567,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     def execute_returning_one(
         self,
         db_session: Session,
-        statement: Select[SelectT],
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
@@ -555,10 +593,25 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         is_scalar: Literal[False],
     ) -> Row[SelectT]: ...
 
+    @overload
     def execute_returning_one(
         self,
         db_session: Session,
-        statement: Select[SelectT],
+        statement: Update | Delete,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool,
+        is_scalar: Literal[False],
+    ) -> Row[Any]: ...
+
+    def execute_returning_one(
+        self,
+        db_session: Session,
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -567,7 +620,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Any | Row[SelectT]:
+    ) -> Any | Row[SelectT] | Row[Any]:
         res = self._execute(
             db_session=db_session,
             statement=statement,
@@ -591,7 +644,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     def execute_returning_one_or_none(
         self,
         db_session: Session,
-        statement: Select[SelectT],
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
         execution_options: dict[str, Any] | None,
@@ -617,10 +670,25 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         is_scalar: Literal[False],
     ) -> Row[SelectT] | None: ...
 
+    @overload
     def execute_returning_one_or_none(
         self,
         db_session: Session,
-        statement: Select[SelectT],
+        statement: Update | Delete,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        auto_commit: bool | None,
+        auto_expunge: bool | None,
+        auto_refresh: bool | None,
+        with_for_update: bool = False,
+        is_scalar: Literal[False],
+    ) -> Row[Any] | None: ...
+
+    def execute_returning_one_or_none(
+        self,
+        db_session: Session,
+        statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
@@ -629,7 +697,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         auto_refresh: bool | None = None,
         with_for_update: bool = False,
         is_scalar: bool = True,
-    ) -> Row[SelectT] | Any | None:
+    ) -> Row[SelectT] | Row[Any] | Any | None:
         res = self._execute(
             db_session=db_session,
             statement=statement,
@@ -657,9 +725,20 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
         return statement
 
+    @overload
     def add_filters(
         self, statement: Select[SelectT], filters: InputSchema | None
-    ) -> Select[SelectT]:
+    ) -> Select[SelectT]: ...
+
+    @overload
+    def add_filters(self, statement: Update, filters: InputSchema | None) -> Update: ...
+
+    @overload
+    def add_filters(self, statement: Delete, filters: InputSchema | None) -> Delete: ...
+
+    def add_filters(
+        self, statement: Select[SelectT] | Update | Delete, filters: InputSchema | None
+    ) -> Select[SelectT] | Update | Delete:
         if filters is not None:
             for item, value in unpack_schema(
                 schema=filters, exclude=PaginationFields
@@ -674,14 +753,44 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
         return statement
 
+    @overload
     def _prepare_statement(
         self,
         statement: Select[SelectT],
         *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool,
+    ) -> Select[SelectT]: ...
+
+    @overload
+    def _prepare_statement(
+        self,
+        statement: Update,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool,
+    ) -> Update: ...
+
+    @overload
+    def _prepare_statement(
+        self,
+        statement: Delete,
+        *,
+        loader_options: tuple[_AbstractLoad] | None,
+        execution_options: dict[str, Any] | None,
+        with_for_update: bool,
+    ) -> Delete: ...
+
+    def _prepare_statement(
+        self,
+        statement: Select[SelectT] | Update | Delete,
+        *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
         with_for_update: bool = False,
-    ) -> Select[SelectT]:
+    ) -> Select[SelectT] | Update | Delete:
         current_loader_options = (
             loader_options if loader_options is not None else self.loader_options
         )
@@ -696,7 +805,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         if current_execution_options is not None:
             statement = statement.execution_options(**current_execution_options)
 
-        if with_for_update:
+        if with_for_update and isinstance(statement, Select):
             statement = statement.with_for_update()
 
         return statement
@@ -723,19 +832,19 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
     Methods:
         __init__(self, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = False, auto_refresh: bool | None = True, auto_commit: bool | None = False, raise_permission_error: bool | None = True) -> None:
             Initializes the repository with the given options.
-        read_with_permission(self, db_session: SyncSession, id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = None, auto_commit: bool | None = False, with_for_update: bool = False, raise_permission_error: bool | None = False) -> BaseModelT | None:
+        read_with_permission(self, db_session: Session, id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = None, auto_commit: bool | None = False, with_for_update: bool = False, raise_permission_error: bool | None = False) -> BaseModelT | None:
             Reads a single database object with permission checks.
-        read_multiple_with_permission(self, db_session: SyncSession, user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False, auto_expunge: bool | None = None, with_for_update: bool = False) -> Sequence[BaseModelT]:
+        read_multiple_with_permission(self, db_session: Session, user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False, auto_expunge: bool | None = None, with_for_update: bool = False) -> Sequence[BaseModelT]:
             Reads multiple database objects with permission checks.
-        update_with_permission(self, db_session: SyncSession, id: Any, object_in: InputSchema, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, with_for_update: bool = True, raise_permission_error: bool | None = None) -> BaseModelT | None:
+        update_with_permission(self, db_session: Session, id: Any, object_in: InputSchema, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, with_for_update: bool = True, raise_permission_error: bool | None = None) -> BaseModelT | None:
             Updates a database object with permission checks.
-        update_db_object_with_permission(self, db_session: SyncSession, db_object: BaseModelT | None, object_in: InputSchema, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, raise_permission_error: bool | None = None) -> BaseModelT | None:
+        update_db_object_with_permission(self, db_session: Session, db_object: BaseModelT | None, object_in: InputSchema, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, raise_permission_error: bool | None = None) -> BaseModelT | None:
             Updates a database object with permission checks.
-        delete_with_permission(self, db_session: SyncSession, id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, with_for_update: bool = False, raise_permission_error: bool | None = None) -> None:
+        delete_with_permission(self, db_session: Session, id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, with_for_update: bool = False, raise_permission_error: bool | None = None) -> None:
             Deletes a database object with permission checks.
-        delete_db_object_with_permission(self, db_session: SyncSession, db_object: BaseModelT | None, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, raise_permission_error: bool | None = None) -> None:
+        delete_db_object_with_permission(self, db_session: Session, db_object: BaseModelT | None, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, raise_permission_error: bool | None = None) -> None:
             Deletes a database object with permission checks.
-        count_with_permission(self, db_session: SyncSession, user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False) -> int:
+        count_with_permission(self, db_session: Session, user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False) -> int:
             Counts the number of database objects with permission checks.
         add_permission_filter(self, statement: Select[SelectT], user_id: Any) -> Select[SelectT]:
             Adds a permission filter to the SQL statement.
