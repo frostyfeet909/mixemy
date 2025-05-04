@@ -22,13 +22,17 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-sqlalchemy = {version = "^2.0", extras = ["asyncio"]}
+sqlalchemy = "^2.0"
 pydantic = "^2.0"
 uuid-utils = "^0.10"
+greenlet = {version = ">=1", optional = true}
+
+[tool.poetry.extras]
+asyncio = ["greenlet"]
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.11.0"
-pyright = "1.1.396"
+ruff = "0.11.8"
+pyright = "1.1.340"
 pytest = "^8.3.4"
 pre-commit = "^4.0.1"
 testcontainers = "^4.9.0"
