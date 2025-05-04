@@ -29,6 +29,10 @@ class BaseAsyncService(
     Attributes:
         repository_type (type[RepositoryAsyncT]): The type of the repository.
         output_schema_type (type[OutputSchemaT]): The type of the output schema.
+        default_recursive_model_conversion (bool): Default value for recursive model conversion.
+        default_exclude_unset (bool): Default value for excluding unset fields.
+        default_exclude (set[str] | None): Default value for excluded fields.
+        default_by_alias (bool): Default value for using field aliases.
     Methods:
         __init__(db_session: AsyncSession) -> None:
             Initializes the service with the given database session.
@@ -53,10 +57,10 @@ class BaseAsyncService(
     repository_type: type[RepositoryAsyncT]
     output_schema_type: type[OutputSchemaT]
 
-    default_model_recursive_model_conversion: bool = False
-    default_schema_exclude_unset: bool = True
-    default_schema_exclude: set[str] | None = None
-    default_schema_by_alias: bool = True
+    default_recursive_model_conversion: bool = False
+    default_exclude_unset: bool = True
+    default_exclude: set[str] | None = None
+    default_by_alias: bool = True
 
     def __init__(
         self,
@@ -75,26 +79,22 @@ class BaseAsyncService(
         self.recursive_model_conversion = (
             recursive_model_conversion
             if recursive_model_conversion is not None
-            else self.default_model_recursive_model_conversion
+            else self.default_recursive_model_conversion
         )
         self.exclude_unset = (
-            exclude_unset
-            if exclude_unset is not None
-            else self.default_schema_exclude_unset
+            exclude_unset if exclude_unset is not None else self.default_exclude_unset
         )
-        self.exclude = exclude if exclude is not None else self.default_schema_exclude
-        self.by_alias = (
-            by_alias if by_alias is not None else self.default_schema_by_alias
-        )
+        self.exclude = exclude if exclude is not None else self.default_exclude
+        self.by_alias = by_alias if by_alias is not None else self.default_by_alias
 
     async def create(
         self,
         object_in: InputSchema,
         *,
         recursive_model_conversion: bool | None = None,
-        schema_exclude_unset: bool | None = None,
-        schema_exclude: set[str] | None = None,
-        schema_by_alias: bool | None = None,
+        exclude_unset: bool | None = None,
+        exclude: set[str] | None = None,
+        by_alias: bool | None = None,
         **kwargs: Any,
     ) -> OutputSchemaT:
         return self.to_schema(
@@ -103,9 +103,9 @@ class BaseAsyncService(
                 db_object=self.to_model(
                     schema=object_in,
                     recursive_model_conversion=recursive_model_conversion,
-                    by_alias=schema_by_alias,
-                    exclude_unset=schema_exclude_unset,
-                    exclude=schema_exclude,
+                    by_alias=by_alias,
+                    exclude_unset=exclude_unset,
+                    exclude=exclude,
                 ),
                 **kwargs,
             ),
