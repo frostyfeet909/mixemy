@@ -992,6 +992,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
         with_for_update: bool = True,
+        is_read_only: bool | None = None,
         raise_permission_error: bool | None = None,
     ) -> BaseModelT | None:
         db_object = await self._get(
@@ -1012,6 +1013,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
             auto_refresh=auto_refresh,
+            is_read_only=is_read_only,
             raise_permission_error=raise_permission_error,
         )
 
@@ -1056,6 +1058,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         with_for_update: bool = False,
+        is_read_only: bool | None = None,
         raise_permission_error: bool | None = None,
     ) -> None:
         db_object = await self._get(
@@ -1074,6 +1077,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
             user_id=user_id,
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
+            is_read_only=is_read_only,
             raise_permission_error=raise_permission_error,
         )
 
