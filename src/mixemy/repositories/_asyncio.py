@@ -1,6 +1,6 @@
 from abc import ABC
 from collections.abc import Sequence
-from typing import Any, Generic, Literal, overload
+from typing import TYPE_CHECKING, Any, Generic, Literal, overload
 
 from sqlalchemy import (
     CursorResult,
@@ -13,7 +13,6 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.orm.strategy_options import (
     _AbstractLoad,  # pyright: ignore[reportPrivateUsage]
@@ -28,6 +27,9 @@ from mixemy.schemas import InputSchema
 from mixemy.schemas.paginations import PaginationFields, PaginationFilter
 from mixemy.types import BaseModelT, SelectT
 from mixemy.utils import unpack_schema
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class BaseAsyncRepository(Generic[BaseModelT], ABC):
@@ -124,7 +126,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def create(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         db_object: BaseModelT,
         *,
         auto_commit: bool | None = None,
@@ -141,7 +143,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def read(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         id: Any,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -162,7 +164,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def read_multiple(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         filters: InputSchema | None = None,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -187,7 +189,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def update(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         id: Any,
         object_in: InputSchema,
         *,
@@ -219,7 +221,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def update_db_object(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         db_object: BaseModelT | None,
         object_in: InputSchema,
         *,
@@ -249,7 +251,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def delete(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         id: Any,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -276,7 +278,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def delete_db_object(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         db_object: BaseModelT | None,
         *,
         auto_commit: bool | None = None,
@@ -300,7 +302,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def count(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         filters: InputSchema | None = None,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -322,7 +324,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def _maybe_commit_or_flush_or_refresh_or_expunge(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         db_object: Sequence[object] | object | None,
         *,
         auto_commit: bool | None = None,
@@ -348,7 +350,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def _add(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         db_object: BaseModelT,
         *,
         auto_commit: bool | None = None,
@@ -368,7 +370,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def _delete(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         db_object: BaseModelT,
         *,
         auto_commit: bool | None = None,
@@ -385,7 +387,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def _get(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         id: Any,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -422,7 +424,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def _execute(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT],
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -435,7 +437,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def _execute(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT] | Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -448,7 +450,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def _execute(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -460,7 +462,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def _execute(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT] | Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -490,7 +492,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def execute_returning_all(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT],
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -505,7 +507,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def execute_returning_all(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -520,7 +522,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def execute_returning_all(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -534,7 +536,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def execute_returning_all(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -567,7 +569,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def execute_returning_one(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -582,7 +584,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def execute_returning_one(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT],
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -597,7 +599,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def execute_returning_one(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -611,7 +613,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def execute_returning_one(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -644,7 +646,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def execute_returning_one_or_none(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -659,7 +661,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def execute_returning_one_or_none(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT],
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -674,7 +676,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     @overload
     async def execute_returning_one_or_none(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -688,7 +690,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
     async def execute_returning_one_or_none(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -833,19 +835,19 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
     Methods:
         __init__(self, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = False, auto_refresh: bool | None = True, auto_commit: bool | None = False, raise_permission_error: bool | None = True) -> None:
             Initializes the repository with the given options.
-        async read_with_permission(self, db_session: AsyncSession, id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = None, auto_commit: bool | None = False, with_for_update: bool = False, raise_permission_error: bool | None = False) -> BaseModelT | None:
+        async read_with_permission(self, db_session: "AsyncSession", id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = None, auto_commit: bool | None = False, with_for_update: bool = False, raise_permission_error: bool | None = False) -> BaseModelT | None:
             Reads a single database object with permission checks.
-        async read_multiple_with_permission(self, db_session: AsyncSession, user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False, auto_expunge: bool | None = None, with_for_update: bool = False) -> Sequence[BaseModelT]:
+        async read_multiple_with_permission(self, db_session: "AsyncSession", user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False, auto_expunge: bool | None = None, with_for_update: bool = False) -> Sequence[BaseModelT]:
             Reads multiple database objects with permission checks.
-        async update_with_permission(self, db_session: AsyncSession, id: Any, object_in: InputSchema, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, with_for_update: bool = True, raise_permission_error: bool | None = None) -> BaseModelT | None:
+        async update_with_permission(self, db_session: "AsyncSession", id: Any, object_in: InputSchema, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, with_for_update: bool = True, raise_permission_error: bool | None = None) -> BaseModelT | None:
             Updates a database object with permission checks.
-        async update_db_object_with_permission(self, db_session: AsyncSession, db_object: BaseModelT | None, object_in: InputSchema, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, raise_permission_error: bool | None = None) -> BaseModelT | None:
+        async update_db_object_with_permission(self, db_session: "AsyncSession", db_object: BaseModelT | None, object_in: InputSchema, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, raise_permission_error: bool | None = None) -> BaseModelT | None:
             Updates a database object with permission checks.
-        async delete_with_permission(self, db_session: AsyncSession, id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, with_for_update: bool = False, raise_permission_error: bool | None = None) -> None:
+        async delete_with_permission(self, db_session: "AsyncSession", id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, with_for_update: bool = False, raise_permission_error: bool | None = None) -> None:
             Deletes a database object with permission checks.
-        async delete_db_object_with_permission(self, db_session: AsyncSession, db_object: BaseModelT | None, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, raise_permission_error: bool | None = None) -> None:
+        async delete_db_object_with_permission(self, db_session: "AsyncSession", db_object: BaseModelT | None, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, raise_permission_error: bool | None = None) -> None:
             Deletes a database object with permission checks.
-        async count_with_permission(self, db_session: AsyncSession, user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False) -> int:
+        async count_with_permission(self, db_session: "AsyncSession", user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False) -> int:
             Counts the number of database objects with permission checks.
         add_permission_filter(self, statement: Select[SelectT], user_id: Any) -> Select[SelectT]:
             Adds a permission filter to the SQL statement.
@@ -885,7 +887,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
 
     async def read_with_permission(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         id: Any,
         user_id: Any,
         *,
@@ -914,7 +916,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
 
     async def read_multiple_with_permission(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         user_id: Any,
         filters: InputSchema | None = None,
         *,
@@ -941,7 +943,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
 
     async def update_with_permission(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         id: Any,
         object_in: InputSchema,
         user_id: Any,
@@ -977,7 +979,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
 
     async def update_db_object_with_permission(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         db_object: BaseModelT | None,
         object_in: InputSchema,
         user_id: Any,
@@ -1014,7 +1016,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
 
     async def delete_with_permission(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         id: Any,
         user_id: Any,
         *,
@@ -1046,7 +1048,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
 
     async def delete_db_object_with_permission(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         db_object: BaseModelT | None,
         user_id: Any,
         *,
@@ -1077,7 +1079,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
 
     async def count_with_permission(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         user_id: Any,
         filters: InputSchema | None = None,
         *,

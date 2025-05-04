@@ -1,7 +1,5 @@
 from abc import ABC
-from typing import Any, Generic
-
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import TYPE_CHECKING, Any, Generic
 
 from mixemy.exceptions import MixemyServiceSetupError
 from mixemy.models import BaseModel
@@ -12,6 +10,9 @@ from mixemy.types import (
     RepositoryAsyncT,
 )
 from mixemy.utils import to_model, to_schema
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class BaseAsyncService(
@@ -64,7 +65,7 @@ class BaseAsyncService(
 
     def __init__(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         *,
         recursive_model_conversion: bool | None = None,
         exclude_unset: bool | None = None,
@@ -226,7 +227,7 @@ class PermissionAsyncService(
 
     def __init__(
         self,
-        db_session: AsyncSession,
+        db_session: "AsyncSession",
         *,
         recursive_model_conversion: bool | None = None,
         exclude_unset: bool | None = None,

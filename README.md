@@ -32,6 +32,12 @@ pip install mixemy
 
 _(Adjust the installation command based on your environment and package source.)_
 
+To enable async support, ensure you have the required dependencies installed:
+
+```bash
+pip install mixemy[asyncio]
+```
+
 ## Getting Started
 
 Mixemy revolves around three core components:
