@@ -72,9 +72,18 @@ def to_model(
 
     try:
         return model(**unpacked_schema, **sub_models)
+    except AttributeError as ex:
+        message = (
+            f"Error converting {type(schema)} to {model}.\nThis is likely as there is a nested model in {type(schema)} and `recursive_conversion` is false"
+            if not recursive_conversion
+            else None
+        )
+        raise MixemyConversionError(
+            model=model, schema=type(schema), is_model_to_schema=False, message=message
+        ) from ex
     except ArgumentError as ex:
         raise MixemyConversionError(
-            model=model, schema=schema, is_model_to_schema=False
+            model=model, schema=type(schema), is_model_to_schema=False
         ) from ex
 
 

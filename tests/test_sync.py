@@ -165,7 +165,7 @@ def test_recursive_model(
     ):
         repository_type = ItemRepository
         output_schema_type = ItemOutput
-        default_model_recursive_model_conversion = True
+        default_recursive_model_conversion = True
 
     item_service = ItemService(db_session=session)
 
