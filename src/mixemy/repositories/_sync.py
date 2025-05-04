@@ -13,7 +13,6 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.orm.strategy_options import (
     _AbstractLoad,  # pyright: ignore[reportPrivateUsage]
 )
@@ -24,9 +23,10 @@ from mixemy.exceptions import (
     MixemyRepositoryReadOnlyError,
     MixemyRepositorySetupError,
 )
+from mixemy.repositories.permission_strategies import PermissionStrategyFactory
 from mixemy.schemas import InputSchema
 from mixemy.schemas.paginations import PaginationFields, PaginationFilter
-from mixemy.types import BaseModelT, SelectT
+from mixemy.types import BaseModelT, SelectT, permission_strategies
 from mixemy.utils import unpack_schema
 
 if TYPE_CHECKING:
@@ -862,8 +862,8 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
     """PermissionSyncRepository is an abstract base class that provides synchronous methods for handling database operations with user permission checks.
 
     Attributes:
-        user_id_attribute (str | InstrumentedAttribute[Any]): The attribute representing the user ID.
-        user_joined_table (str | InstrumentedAttribute[Any] | None): The attribute representing the joined table for user permissions.
+        user_id_attribute (str): The attribute representing the user ID.
+        user_joined_table (str | None): The attribute representing the joined table for user permissions.
         default_raise_permission_error (bool): Default flag to raise permission error.
     Methods:
         __init__(self, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = False, auto_refresh: bool | None = True, auto_commit: bool | None = False, raise_permission_error: bool | None = True) -> None:
@@ -890,10 +890,11 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
             Verifies the initialization of the repository.
     """
 
-    user_id_attribute: str | InstrumentedAttribute[Any] = "user_id"
-    user_joined_table: str | InstrumentedAttribute[Any] | None = None
+    user_id_attribute: str = "user_id"
+    user_joined_table: str | None = None
 
     default_raise_permission_error: bool = True
+    default_permission_strategy: permission_strategies = "strict"
 
     def __init__(
         self,
@@ -905,6 +906,7 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
         auto_commit: bool | None = None,
         is_read_only: bool | None = None,
         raise_permission_error: bool | None = None,
+        permission_strategy: permission_strategies | None = None,
     ) -> None:
         self.raise_permission_error = (
             raise_permission_error
@@ -918,6 +920,16 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
             auto_refresh=auto_refresh,
             auto_commit=auto_commit,
             is_read_only=is_read_only,
+        )
+        self.permission_strategy = PermissionStrategyFactory.create_permission_strategy(
+            strategy=(
+                permission_strategy
+                if permission_strategy is not None
+                else self.default_permission_strategy
+            ),
+            model=self.model,
+            user_id_attribute=self.user_id_attribute,
+            user_joined_table=self.user_joined_table,
         )
 
     def read_with_permission(
@@ -1136,17 +1148,10 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
         statement: Select[SelectT],
         user_id: Any,
     ) -> Select[SelectT]:
-        if self.user_joined_table is None:
-            statement = statement.where(
-                getattr(self.model, self.user_id_attribute) == user_id
-            )
-        else:
-            joined_table = getattr(self.model, self.user_joined_table)
-            statement = statement.join(joined_table).where(
-                getattr(joined_table, self.user_id_attribute) == user_id
-            )
-
-        return statement
+        return self.permission_strategy.add_permission_filter(
+            statement=statement,
+            user_id=user_id,
+        )
 
     def handle_permission_on_db_oject(
         self,
@@ -1159,29 +1164,24 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
         If the user does not have permission, it raises a MixemyRepositoryPermissionError or return false.
         If the user has permission, it returns true.
         """
-        if db_object is None:
+        authenticated, object_id = (
+            self.permission_strategy.check_permission_on_db_oject(
+                db_object=db_object,
+                user_id=user_id,
+            )
+        )
+
+        if authenticated:
             return True
 
-        if (
-            self.user_joined_table is None
-            and getattr(db_object, self.user_id_attribute) != user_id
-        ) or (
-            self.user_joined_table is not None
-            and getattr(
-                getattr(db_object, self.user_joined_table), self.user_id_attribute
-            )
-            != user_id
+        if raise_permission_error is False or (
+            raise_permission_error is None and self.raise_permission_error is False
         ):
-            if raise_permission_error is True or (
-                raise_permission_error is None and self.raise_permission_error
-            ):
-                raise MixemyRepositoryPermissionError(
-                    repository=self, object_id=id, user_id=user_id
-                )
-
             return False
 
-        return True
+        raise MixemyRepositoryPermissionError(
+            repository=self, object_id=object_id, user_id=user_id
+        )
 
     def _verify_init(self) -> None:
         for field in ["model", "user_id_attribute"]:

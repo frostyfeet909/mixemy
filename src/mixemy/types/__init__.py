@@ -21,7 +21,7 @@ Exports:
 """
 
 from ._models import BaseModelT
-from ._repositories import SelectT
+from ._repositories import SelectT, permission_strategies
 from ._schemas import (
     BaseSchemaT,
     CreateSchemaT,
@@ -48,4 +48,5 @@ __all__ = [
     "RepositorySyncT",
     "SelectT",
     "UpdateSchemaT",
+    "permission_strategies",
 ]
