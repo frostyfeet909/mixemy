@@ -148,6 +148,43 @@ class MixemyRepositoryPermissionError(MixemyRepositoryError):
         super().__init__(repository=repository, message=message)
 
 
+class MixemyRepositoryReadOnlyError(MixemyRepositoryError):
+    """Exception raised when a repository is in read-only mode.
+
+    This exception is a subclass of MixemyRepositoryError and is raised when an
+    operation is attempted on a repository that is in read-only mode.
+
+    Attributes:
+        repository (BaseSyncRepository[Any] | BaseAsyncRepository[Any]): The repository instance where the error occurred.
+        message (str): The error message.
+
+    Args:
+        repository (BaseSyncRepository[Any] | BaseAsyncRepository[Any]): The repository instance where the error occurred.
+        message (str): The error message.
+    """
+
+    def __init__(
+        self,
+        repository: "BaseSyncRepository[Any] | BaseAsyncRepository[Any]",
+        model: "BaseModel | type[BaseModel] | None" = None,
+        operation: str | None = None,
+        message: str | None = None,
+    ) -> None:
+        """Initialize the exception with the given repository and message.
+
+        Args:
+            repository (BaseSyncRepository[Any] | BaseAsyncRepository[Any]): The repository instance where the error occurred.
+            message (str): The error message.
+        """
+        if message is None:
+            message = f"Repository {repository} is in read-only mode."
+            if model is not None:
+                message += f" On Model: {model}."
+            if operation is not None:
+                message += f" Using Operation: {operation}."
+        super().__init__(repository=repository, message=message)
+
+
 class MixemyServiceError(MixemyError):
     """Exception raised for errors that occur within a Mixemy service.
 

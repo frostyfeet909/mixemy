@@ -21,6 +21,7 @@ from sqlalchemy.util import EMPTY_DICT
 
 from mixemy.exceptions import (
     MixemyRepositoryPermissionError,
+    MixemyRepositoryReadOnlyError,
     MixemyRepositorySetupError,
 )
 from mixemy.schemas import InputSchema
@@ -42,6 +43,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         default_auto_expunge (bool): Whether to automatically expunge objects from the session after operations. Defaults to False.
         default_auto_refresh (bool): Whether to automatically refresh objects after operations. Defaults to True.
         default_auto_commit (bool): Whether to automatically commit the session after operations. Defaults to False.
+        default_is_read_only (bool): Whether the repository is in read-only mode. Defaults to False.
     Methods:
         __init__(self, *, loader_options=None, execution_options=None, auto_expunge=False, auto_refresh=True, auto_commit=False):
             Initializes the repository with optional custom settings.
@@ -81,6 +83,8 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             Helper method to prepare a SQLAlchemy statement with options and execution settings.
         def _update_db_object(db_object, object_in):
             Helper method to update a database object with new values.
+        def handle_read_only(self, is_read_only=None):
+            Helper method to handle read-only mode for the repository.
         def _verify_init(self):
             Helper method to verify that required attributes are set during initialization.
     """
@@ -92,15 +96,17 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     default_auto_expunge: bool = False
     default_auto_refresh: bool = True
     default_auto_commit: bool = False
+    default_is_read_only: bool = False
 
     def __init__(
         self,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
-        auto_expunge: bool | None = False,
-        auto_refresh: bool | None = True,
-        auto_commit: bool | None = False,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
+        auto_commit: bool | None = None,
+        is_read_only: bool | None = None,
     ) -> None:
         self.loader_options = (
             loader_options
@@ -121,7 +127,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         self.auto_commit = (
             auto_commit if auto_commit is not None else self.default_auto_commit
         )
-
+        self.is_read_only = (
+            is_read_only if is_read_only is not None else self.default_is_read_only
+        )
         self._verify_init()
 
     async def create(
@@ -132,7 +140,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
+        is_read_only: bool | None = None,
     ) -> BaseModelT:
+        self.handle_read_only(is_read_only=is_read_only)
         return await self._add(
             db_session=db_session,
             db_object=db_object,
@@ -199,6 +209,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
         with_for_update: bool = True,
+        is_read_only: bool | None = None,
     ) -> BaseModelT | None:
         db_object = await self._get(
             db_session=db_session,
@@ -217,6 +228,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
             auto_refresh=auto_refresh,
+            is_read_only=is_read_only,
         )
 
     async def update_db_object(
@@ -228,7 +240,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
+        is_read_only: bool | None = None,
     ) -> BaseModelT | None:
+        self.handle_read_only(is_read_only=is_read_only)
         if db_object is not None:
             self._update_db_object(db_object=db_object, object_in=object_in)
             return await self._add(
@@ -259,6 +273,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         with_for_update: bool = False,
+        is_read_only: bool | None = None,
     ) -> None:
         db_object = await self._get(
             db_session=db_session,
@@ -274,6 +289,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             db_object=db_object,
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
+            is_read_only=is_read_only,
         )
 
     async def delete_db_object(
@@ -283,7 +299,9 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
         *,
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
+        is_read_only: bool | None = None,
     ) -> None:
+        self.handle_read_only(is_read_only=is_read_only)
         if db_object is not None:
             await self._delete(
                 db_session=db_session,
@@ -756,6 +774,21 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
 
         return statement
 
+    def handle_read_only(
+        self,
+        is_read_only: bool | None = None,
+    ) -> None:
+        """Handle read-only mode for the repository.
+
+        This method checks if the repository is in read-only mode and raises an error if necessary.
+        This is to be called on editing operations like create, update, or delete.
+        """
+        if is_read_only is True or (is_read_only is None and self.is_read_only):
+            raise MixemyRepositoryReadOnlyError(
+                repository=self,
+                model=self.model,
+            )
+
     @overload
     def _prepare_statement(
         self,
@@ -851,7 +884,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
             Counts the number of database objects with permission checks.
         add_permission_filter(self, statement: Select[SelectT], user_id: Any) -> Select[SelectT]:
             Adds a permission filter to the SQL statement.
-        check_permission_on_db_oject(self, db_object: BaseModelT | None, user_id: Any, raise_permission_error: bool | None = None) -> BaseModelT | None:
+        handle_permission_on_db_oject(self, db_object: BaseModelT | None, user_id: Any, raise_permission_error: bool | None = None) -> BaseModelT | None:
             Checks if the user has permission on the database object.
         _verify_init(self) -> None:
             Verifies the initialization of the repository.
@@ -867,10 +900,11 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
-        auto_expunge: bool | None = False,
-        auto_refresh: bool | None = True,
-        auto_commit: bool | None = False,
-        raise_permission_error: bool | None = True,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
+        auto_commit: bool | None = None,
+        is_read_only: bool | None = None,
+        raise_permission_error: bool | None = None,
     ) -> None:
         self.raise_permission_error = (
             raise_permission_error
@@ -883,6 +917,7 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
             auto_expunge=auto_expunge,
             auto_refresh=auto_refresh,
             auto_commit=auto_commit,
+            is_read_only=is_read_only,
         )
 
     async def read_with_permission(
@@ -908,11 +943,14 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
             with_for_update=with_for_update,
         )
 
-        return self.check_permission_on_db_oject(
+        if not self.handle_permission_on_db_oject(
             db_object=db_object,
             user_id=user_id,
             raise_permission_error=raise_permission_error,
-        )
+        ):
+            return None
+
+        return db_object
 
     async def read_multiple_with_permission(
         self,
@@ -987,32 +1025,25 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
+        is_read_only: bool | None = None,
         raise_permission_error: bool | None = None,
     ) -> BaseModelT | None:
-        db_object = self.check_permission_on_db_oject(
+        if not self.handle_permission_on_db_oject(
             db_object=db_object,
             user_id=user_id,
             raise_permission_error=raise_permission_error,
-        )
-        if db_object is not None:
-            self._update_db_object(db_object=db_object, object_in=object_in)
-            return await self._add(
-                db_session=db_session,
-                db_object=db_object,
-                auto_commit=auto_commit,
-                auto_expunge=auto_expunge,
-                auto_refresh=auto_refresh,
-            )
+        ):
+            return None
 
-        await self._maybe_commit_or_flush_or_refresh_or_expunge(
+        return await self.update_db_object(
             db_session=db_session,
             db_object=db_object,
+            object_in=object_in,
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
             auto_refresh=auto_refresh,
+            is_read_only=is_read_only,
         )
-
-        return None
 
     async def delete_with_permission(
         self,
@@ -1054,28 +1085,23 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
         *,
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
+        is_read_only: bool | None = None,
         raise_permission_error: bool | None = None,
     ) -> None:
-        db_object = self.check_permission_on_db_oject(
+        if not self.handle_permission_on_db_oject(
             db_object=db_object,
             user_id=user_id,
             raise_permission_error=raise_permission_error,
+        ):
+            return None
+
+        return await self.delete_db_object(
+            db_session=db_session,
+            db_object=db_object,
+            auto_commit=auto_commit,
+            auto_expunge=auto_expunge,
+            is_read_only=is_read_only,
         )
-        if db_object is not None:
-            await self._delete(
-                db_session=db_session,
-                db_object=db_object,
-                auto_commit=auto_commit,
-                auto_expunge=auto_expunge,
-            )
-        else:
-            await self._maybe_commit_or_flush_or_refresh_or_expunge(
-                db_session=db_session,
-                db_object=db_object,
-                auto_commit=auto_commit,
-                auto_expunge=auto_expunge,
-                auto_refresh=False,
-            )
 
     async def count_with_permission(
         self,
@@ -1118,14 +1144,19 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
 
         return statement
 
-    def check_permission_on_db_oject(
+    def handle_permission_on_db_oject(
         self,
         db_object: BaseModelT | None,
         user_id: Any,
         raise_permission_error: bool | None = None,
-    ) -> BaseModelT | None:
+    ) -> bool:
+        """Check if the user has permission on the database object.
+
+        If the user does not have permission, it raises a MixemyRepositoryPermissionError or return false.
+        If the user has permission, it returns true.
+        """
         if db_object is None:
-            return None
+            return True
 
         if (
             self.user_joined_table is None
@@ -1144,9 +1175,9 @@ class PermissionAsyncRepository(BaseAsyncRepository[BaseModelT], ABC):
                     repository=self, object_id=id, user_id=user_id
                 )
 
-            db_object = None
+            return False
 
-        return db_object
+        return True
 
     def _verify_init(self) -> None:
         for field in ["model", "user_id_attribute"]:
