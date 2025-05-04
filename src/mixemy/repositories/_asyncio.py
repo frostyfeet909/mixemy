@@ -96,7 +96,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
     default_auto_expunge: bool = False
     default_auto_refresh: bool = True
     default_auto_commit: bool = False
-    defaut_is_read_only: bool = False
+    default_is_read_only: bool = False
 
     def __init__(
         self,
@@ -128,7 +128,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             auto_commit if auto_commit is not None else self.default_auto_commit
         )
         self.is_read_only = (
-            is_read_only if is_read_only is not None else self.defaut_is_read_only
+            is_read_only if is_read_only is not None else self.default_is_read_only
         )
         self._verify_init()
 
