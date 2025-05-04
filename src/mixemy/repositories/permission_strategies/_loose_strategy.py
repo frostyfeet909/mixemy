@@ -37,11 +37,6 @@ class LoosePermissionStrategy(PermissionStrategy):
         db_object: BaseModelT | None,  # type: ignore no
         user_id: Any,
     ) -> tuple[bool, Any]:
-        """Check if the user has permission on the database object.
-
-        If the user does not have permission, it raises a MixemyRepositoryPermissionError or return false.
-        If the user has permission, it returns true.
-        """
         if db_object is None or user_id is None:
             return True, None
 
