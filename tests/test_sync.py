@@ -286,3 +286,71 @@ def test_permission_model(
         )
         is None
     )
+
+
+def test_read_only_repository(
+    session: Session, init_db: None, item_model: "type[IdAuditModel]"
+) -> None:
+    """Test the read-only repository functionality.
+
+    This test verifies that the read-only repository raises the appropriate error
+    when attempting to perform write operations.
+    """
+    from mixemy import exceptions, repositories, schemas, services
+
+    ItemModel = item_model
+
+    class ItemInput(schemas.InputSchema):
+        value: str
+
+    class ItemUpdate(ItemInput):
+        nullable_value: str | None
+
+    class ItemOutput(schemas.IdAuditOutputSchema):
+        value: str
+        nullable_value: str | None
+
+    class ItemRepository(repositories.BaseSyncRepository[ItemModel]):
+        model = ItemModel
+
+    class ItemService(services.BaseSyncService[ItemRepository, ItemOutput]):
+        repository_type = ItemRepository
+        output_schema_type = ItemOutput
+
+    item_service = ItemService(db_session=session)
+
+    test_one = ItemInput(value="test_one")
+    test_two = ItemInput(value="test_two")
+    test_one_update = ItemUpdate(value="test_one", nullable_value="test_one_updated")
+
+    item_one = item_service.create(object_in=test_one)
+    item_two = item_service.create(object_in=test_two)
+
+    class NewItemRepository(repositories.BaseSyncRepository[ItemModel]):
+        model = ItemModel
+        default_is_read_only = True
+
+    class NewItemService(services.BaseSyncService[NewItemRepository, ItemOutput]):
+        repository_type = NewItemRepository
+        output_schema_type = ItemOutput
+
+    new_item_service = NewItemService(db_session=session)
+
+    item_one = new_item_service.read(id=item_one.id)
+    item_two = new_item_service.read(id=item_two.id)
+
+    assert item_one is not None
+    assert item_two is not None
+    assert item_one.value == "test_one"
+    assert item_one.nullable_value is None
+    assert item_two.value == "test_two"
+    assert item_two.nullable_value is None
+
+    with pytest.raises(exceptions.MixemyRepositoryReadOnlyError):
+        new_item_service.update(id=item_one.id, object_in=test_one_update)
+
+    with pytest.raises(exceptions.MixemyRepositoryReadOnlyError):
+        new_item_service.create(object_in=test_one)
+
+    with pytest.raises(exceptions.MixemyRepositoryReadOnlyError):
+        new_item_service.delete(id=item_one.id)

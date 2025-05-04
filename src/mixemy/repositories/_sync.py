@@ -1,6 +1,6 @@
 from abc import ABC
 from collections.abc import Sequence
-from typing import Any, Generic, Literal, overload
+from typing import TYPE_CHECKING, Any, Generic, Literal, overload
 
 from sqlalchemy import (
     CursorResult,
@@ -13,7 +13,7 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.orm import InstrumentedAttribute, Session
+from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.orm.strategy_options import (
     _AbstractLoad,  # pyright: ignore[reportPrivateUsage]
 )
@@ -21,12 +21,16 @@ from sqlalchemy.util import EMPTY_DICT
 
 from mixemy.exceptions import (
     MixemyRepositoryPermissionError,
+    MixemyRepositoryReadOnlyError,
     MixemyRepositorySetupError,
 )
 from mixemy.schemas import InputSchema
 from mixemy.schemas.paginations import PaginationFields, PaginationFilter
 from mixemy.types import BaseModelT, SelectT
 from mixemy.utils import unpack_schema
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class BaseSyncRepository(Generic[BaseModelT], ABC):
@@ -39,6 +43,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         default_auto_expunge (bool): Whether to automatically expunge objects from the session after operations. Defaults to False.
         default_auto_refresh (bool): Whether to automatically refresh objects after operations. Defaults to True.
         default_auto_commit (bool): Whether to automatically commit the session after operations. Defaults to False.
+        default_is_read_only (bool): Whether the repository is in read-only mode. Defaults to False.
     Methods:
         __init__(self, *, loader_options=None, execution_options=None, auto_expunge=False, auto_refresh=True, auto_commit=False):
             Initializes the repository with optional custom settings.
@@ -78,6 +83,8 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
             Helper method to prepare a SQLAlchemy statement with options and execution settings.
         def _update_db_object(db_object, object_in):
             Helper method to update a database object with new values.
+        def handle_read_only(self, is_read_only=None):
+            Helper method to handle read-only mode for the repository.
         def _verify_init(self):
             Helper method to verify that required attributes are set during initialization.
     """
@@ -89,15 +96,17 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     default_auto_expunge: bool = False
     default_auto_refresh: bool = True
     default_auto_commit: bool = False
+    default_is_read_only: bool = False
 
     def __init__(
         self,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
-        auto_expunge: bool | None = False,
-        auto_refresh: bool | None = True,
-        auto_commit: bool | None = False,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
+        auto_commit: bool | None = None,
+        is_read_only: bool | None = None,
     ) -> None:
         self.loader_options = (
             loader_options
@@ -118,18 +127,22 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         self.auto_commit = (
             auto_commit if auto_commit is not None else self.default_auto_commit
         )
-
+        self.is_read_only = (
+            is_read_only if is_read_only is not None else self.default_is_read_only
+        )
         self._verify_init()
 
     def create(
         self,
-        db_session: Session,
+        db_session: "Session",
         db_object: BaseModelT,
         *,
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
+        is_read_only: bool | None = None,
     ) -> BaseModelT:
+        self.handle_read_only(is_read_only=is_read_only)
         return self._add(
             db_session=db_session,
             db_object=db_object,
@@ -140,7 +153,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def read(
         self,
-        db_session: Session,
+        db_session: "Session",
         id: Any,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -161,7 +174,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def read_multiple(
         self,
-        db_session: Session,
+        db_session: "Session",
         filters: InputSchema | None = None,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -186,7 +199,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def update(
         self,
-        db_session: Session,
+        db_session: "Session",
         id: Any,
         object_in: InputSchema,
         *,
@@ -196,6 +209,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
         with_for_update: bool = True,
+        is_read_only: bool | None = None,
     ) -> BaseModelT | None:
         db_object = self._get(
             db_session=db_session,
@@ -214,18 +228,21 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
             auto_refresh=auto_refresh,
+            is_read_only=is_read_only,
         )
 
     def update_db_object(
         self,
-        db_session: Session,
+        db_session: "Session",
         db_object: BaseModelT | None,
         object_in: InputSchema,
         *,
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
+        is_read_only: bool | None = None,
     ) -> BaseModelT | None:
+        self.handle_read_only(is_read_only=is_read_only)
         if db_object is not None:
             self._update_db_object(db_object=db_object, object_in=object_in)
             return self._add(
@@ -248,7 +265,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def delete(
         self,
-        db_session: Session,
+        db_session: "Session",
         id: Any,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -256,6 +273,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         with_for_update: bool = False,
+        is_read_only: bool | None = None,
     ) -> None:
         db_object = self._get(
             db_session=db_session,
@@ -271,16 +289,19 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
             db_object=db_object,
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
+            is_read_only=is_read_only,
         )
 
     def delete_db_object(
         self,
-        db_session: Session,
+        db_session: "Session",
         db_object: BaseModelT | None,
         *,
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
+        is_read_only: bool | None = None,
     ) -> None:
+        self.handle_read_only(is_read_only=is_read_only)
         if db_object is not None:
             self._delete(
                 db_session=db_session,
@@ -299,7 +320,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def count(
         self,
-        db_session: Session,
+        db_session: "Session",
         filters: InputSchema | None = None,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -321,7 +342,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def _maybe_commit_or_flush_or_refresh_or_expunge(
         self,
-        db_session: Session,
+        db_session: "Session",
         db_object: Sequence[object] | object | None,
         *,
         auto_commit: bool | None = None,
@@ -347,7 +368,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def _add(
         self,
-        db_session: Session,
+        db_session: "Session",
         db_object: BaseModelT,
         *,
         auto_commit: bool | None = None,
@@ -367,7 +388,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def _delete(
         self,
-        db_session: Session,
+        db_session: "Session",
         db_object: BaseModelT,
         *,
         auto_commit: bool | None = None,
@@ -384,7 +405,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def _get(
         self,
-        db_session: Session,
+        db_session: "Session",
         id: Any,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -421,7 +442,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def _execute(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT],
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -434,7 +455,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def _execute(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT] | Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -447,7 +468,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def _execute(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -459,7 +480,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def _execute(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT] | Delete | Update,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -489,7 +510,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def execute_returning_all(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT],
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -504,7 +525,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def execute_returning_all(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -519,7 +540,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def execute_returning_all(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -533,7 +554,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def execute_returning_all(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -566,7 +587,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def execute_returning_one(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -581,7 +602,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def execute_returning_one(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT],
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -596,7 +617,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def execute_returning_one(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -610,7 +631,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def execute_returning_one(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -643,7 +664,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def execute_returning_one_or_none(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -658,7 +679,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def execute_returning_one_or_none(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT],
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -673,7 +694,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
     @overload
     def execute_returning_one_or_none(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None,
@@ -687,7 +708,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
 
     def execute_returning_one_or_none(
         self,
-        db_session: Session,
+        db_session: "Session",
         statement: Select[SelectT] | Update | Delete,
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
@@ -752,6 +773,21 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
                         statement = statement.where(getattr(self.model, item) == value)
 
         return statement
+
+    def handle_read_only(
+        self,
+        is_read_only: bool | None = None,
+    ) -> None:
+        """Handle read-only mode for the repository.
+
+        This method checks if the repository is in read-only mode and raises an error if necessary.
+        This is to be called on editing operations like create, update, or delete.
+        """
+        if is_read_only is True or (is_read_only is None and self.is_read_only):
+            raise MixemyRepositoryReadOnlyError(
+                repository=self,
+                model=self.model,
+            )
 
     @overload
     def _prepare_statement(
@@ -832,23 +868,23 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
     Methods:
         __init__(self, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = False, auto_refresh: bool | None = True, auto_commit: bool | None = False, raise_permission_error: bool | None = True) -> None:
             Initializes the repository with the given options.
-        read_with_permission(self, db_session: Session, id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = None, auto_commit: bool | None = False, with_for_update: bool = False, raise_permission_error: bool | None = False) -> BaseModelT | None:
+        read_with_permission(self, db_session: "Session", id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_expunge: bool | None = None, auto_commit: bool | None = False, with_for_update: bool = False, raise_permission_error: bool | None = False) -> BaseModelT | None:
             Reads a single database object with permission checks.
-        read_multiple_with_permission(self, db_session: Session, user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False, auto_expunge: bool | None = None, with_for_update: bool = False) -> Sequence[BaseModelT]:
+        read_multiple_with_permission(self, db_session: "Session", user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False, auto_expunge: bool | None = None, with_for_update: bool = False) -> Sequence[BaseModelT]:
             Reads multiple database objects with permission checks.
-        update_with_permission(self, db_session: Session, id: Any, object_in: InputSchema, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, with_for_update: bool = True, raise_permission_error: bool | None = None) -> BaseModelT | None:
+        update_with_permission(self, db_session: "Session", id: Any, object_in: InputSchema, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, with_for_update: bool = True, raise_permission_error: bool | None = None) -> BaseModelT | None:
             Updates a database object with permission checks.
-        update_db_object_with_permission(self, db_session: Session, db_object: BaseModelT | None, object_in: InputSchema, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, raise_permission_error: bool | None = None) -> BaseModelT | None:
+        update_db_object_with_permission(self, db_session: "Session", db_object: BaseModelT | None, object_in: InputSchema, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, auto_refresh: bool | None = None, raise_permission_error: bool | None = None) -> BaseModelT | None:
             Updates a database object with permission checks.
-        delete_with_permission(self, db_session: Session, id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, with_for_update: bool = False, raise_permission_error: bool | None = None) -> None:
+        delete_with_permission(self, db_session: "Session", id: Any, user_id: Any, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = None, auto_expunge: bool | None = None, with_for_update: bool = False, raise_permission_error: bool | None = None) -> None:
             Deletes a database object with permission checks.
-        delete_db_object_with_permission(self, db_session: Session, db_object: BaseModelT | None, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, raise_permission_error: bool | None = None) -> None:
+        delete_db_object_with_permission(self, db_session: "Session", db_object: BaseModelT | None, user_id: Any, *, auto_commit: bool | None = None, auto_expunge: bool | None = None, raise_permission_error: bool | None = None) -> None:
             Deletes a database object with permission checks.
-        count_with_permission(self, db_session: Session, user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False) -> int:
+        count_with_permission(self, db_session: "Session", user_id: Any, filters: InputSchema | None = None, *, loader_options: tuple[_AbstractLoad] | None = None, execution_options: dict[str, Any] | None = None, auto_commit: bool | None = False) -> int:
             Counts the number of database objects with permission checks.
         add_permission_filter(self, statement: Select[SelectT], user_id: Any) -> Select[SelectT]:
             Adds a permission filter to the SQL statement.
-        check_permission_on_db_oject(self, db_object: BaseModelT | None, user_id: Any, raise_permission_error: bool | None = None) -> BaseModelT | None:
+        handle_permission_on_db_oject(self, db_object: BaseModelT | None, user_id: Any, raise_permission_error: bool | None = None) -> BaseModelT | None:
             Checks if the user has permission on the database object.
         _verify_init(self) -> None:
             Verifies the initialization of the repository.
@@ -864,10 +900,11 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
         *,
         loader_options: tuple[_AbstractLoad] | None = None,
         execution_options: dict[str, Any] | None = None,
-        auto_expunge: bool | None = False,
-        auto_refresh: bool | None = True,
-        auto_commit: bool | None = False,
-        raise_permission_error: bool | None = True,
+        auto_expunge: bool | None = None,
+        auto_refresh: bool | None = None,
+        auto_commit: bool | None = None,
+        is_read_only: bool | None = None,
+        raise_permission_error: bool | None = None,
     ) -> None:
         self.raise_permission_error = (
             raise_permission_error
@@ -880,11 +917,12 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
             auto_expunge=auto_expunge,
             auto_refresh=auto_refresh,
             auto_commit=auto_commit,
+            is_read_only=is_read_only,
         )
 
     def read_with_permission(
         self,
-        db_session: Session,
+        db_session: "Session",
         id: Any,
         user_id: Any,
         *,
@@ -905,15 +943,18 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
             with_for_update=with_for_update,
         )
 
-        return self.check_permission_on_db_oject(
+        if not self.handle_permission_on_db_oject(
             db_object=db_object,
             user_id=user_id,
             raise_permission_error=raise_permission_error,
-        )
+        ):
+            return None
+
+        return db_object
 
     def read_multiple_with_permission(
         self,
-        db_session: Session,
+        db_session: "Session",
         user_id: Any,
         filters: InputSchema | None = None,
         *,
@@ -940,7 +981,7 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
 
     def update_with_permission(
         self,
-        db_session: Session,
+        db_session: "Session",
         id: Any,
         object_in: InputSchema,
         user_id: Any,
@@ -976,7 +1017,7 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
 
     def update_db_object_with_permission(
         self,
-        db_session: Session,
+        db_session: "Session",
         db_object: BaseModelT | None,
         object_in: InputSchema,
         user_id: Any,
@@ -984,36 +1025,29 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
         auto_refresh: bool | None = None,
+        is_read_only: bool | None = None,
         raise_permission_error: bool | None = None,
     ) -> BaseModelT | None:
-        db_object = self.check_permission_on_db_oject(
+        if not self.handle_permission_on_db_oject(
             db_object=db_object,
             user_id=user_id,
             raise_permission_error=raise_permission_error,
-        )
-        if db_object is not None:
-            self._update_db_object(db_object=db_object, object_in=object_in)
-            return self._add(
-                db_session=db_session,
-                db_object=db_object,
-                auto_commit=auto_commit,
-                auto_expunge=auto_expunge,
-                auto_refresh=auto_refresh,
-            )
+        ):
+            return None
 
-        self._maybe_commit_or_flush_or_refresh_or_expunge(
+        return self.update_db_object(
             db_session=db_session,
             db_object=db_object,
+            object_in=object_in,
             auto_commit=auto_commit,
             auto_expunge=auto_expunge,
             auto_refresh=auto_refresh,
+            is_read_only=is_read_only,
         )
-
-        return None
 
     def delete_with_permission(
         self,
-        db_session: Session,
+        db_session: "Session",
         id: Any,
         user_id: Any,
         *,
@@ -1045,38 +1079,33 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
 
     def delete_db_object_with_permission(
         self,
-        db_session: Session,
+        db_session: "Session",
         db_object: BaseModelT | None,
         user_id: Any,
         *,
         auto_commit: bool | None = None,
         auto_expunge: bool | None = None,
+        is_read_only: bool | None = None,
         raise_permission_error: bool | None = None,
     ) -> None:
-        db_object = self.check_permission_on_db_oject(
+        if not self.handle_permission_on_db_oject(
             db_object=db_object,
             user_id=user_id,
             raise_permission_error=raise_permission_error,
+        ):
+            return None
+
+        return self.delete_db_object(
+            db_session=db_session,
+            db_object=db_object,
+            auto_commit=auto_commit,
+            auto_expunge=auto_expunge,
+            is_read_only=is_read_only,
         )
-        if db_object is not None:
-            self._delete(
-                db_session=db_session,
-                db_object=db_object,
-                auto_commit=auto_commit,
-                auto_expunge=auto_expunge,
-            )
-        else:
-            self._maybe_commit_or_flush_or_refresh_or_expunge(
-                db_session=db_session,
-                db_object=db_object,
-                auto_commit=auto_commit,
-                auto_expunge=auto_expunge,
-                auto_refresh=False,
-            )
 
     def count_with_permission(
         self,
-        db_session: Session,
+        db_session: "Session",
         user_id: Any,
         filters: InputSchema | None = None,
         *,
@@ -1115,14 +1144,19 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
 
         return statement
 
-    def check_permission_on_db_oject(
+    def handle_permission_on_db_oject(
         self,
         db_object: BaseModelT | None,
         user_id: Any,
         raise_permission_error: bool | None = None,
-    ) -> BaseModelT | None:
+    ) -> bool:
+        """Check if the user has permission on the database object.
+
+        If the user does not have permission, it raises a MixemyRepositoryPermissionError or return false.
+        If the user has permission, it returns true.
+        """
         if db_object is None:
-            return None
+            return True
 
         if (
             self.user_joined_table is None
@@ -1141,9 +1175,9 @@ class PermissionSyncRepository(BaseSyncRepository[BaseModelT], ABC):
                     repository=self, object_id=id, user_id=user_id
                 )
 
-            db_object = None
+            return False
 
-        return db_object
+        return True
 
     def _verify_init(self) -> None:
         for field in ["model", "user_id_attribute"]:
