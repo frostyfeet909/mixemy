@@ -1,6 +1,6 @@
 from abc import ABC
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Generic, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from sqlalchemy import (
     CursorResult,
@@ -27,13 +27,15 @@ from mixemy.repositories.permission_strategies import PermissionStrategyFactory
 from mixemy.schemas import InputSchema
 from mixemy.schemas.paginations import PaginationFields, PaginationFilter
 from mixemy.types import BaseModelT, SelectT, permission_strategies
-from mixemy.utils import unpack_schema
+from mixemy.utils import pack_sequence, unpack_schema
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from mixemy.models import BaseModel
 
-class BaseAsyncRepository(Generic[BaseModelT], ABC):
+
+class BaseAsyncRepository[BaseModelT: BaseModel](ABC):
     """Base asynchronous repository class providing CRUD operations for a given SQLAlchemy model.
 
     Attributes:
@@ -356,9 +358,7 @@ class BaseAsyncRepository(Generic[BaseModelT], ABC):
             await db_session.flush()
 
         if db_object is not None:
-            instances: Sequence[Any] = (
-                db_object if isinstance(db_object, Sequence) else [db_object]
-            )
+            instances = pack_sequence(db_object)
             if auto_refresh is True or (auto_refresh is None and self.auto_refresh):
                 for instance in instances:
                     await db_session.refresh(instance, attribute_names=refresh_columns)
