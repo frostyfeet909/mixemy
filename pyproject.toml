@@ -40,6 +40,7 @@ testcontainers = "^4.9.0"
 psycopg2 = "^2.9.10"
 asyncpg = "^0.30.0"
 pytest-asyncio = "^0.25.2"
+vulture = "^2.14"
 
 [tool.pyright]
 include = ["src/mixemy/**/*.py"]
@@ -66,7 +67,7 @@ unfixable = ["T20", "ERA001"]
 convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "ARG001", "PLR2004", "N806", "D100"]
+"tests/**/*.py" = ["S101", "ARG001", "PLR2004", "N806", "D100", "PLC0415"]
 "tests/conftest.py" = ["D"]
 
 [tool.pytest.ini_options]

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Any
 
 from mixemy.exceptions import MixemyServiceSetupError
 from mixemy.models import BaseModel
@@ -7,16 +7,20 @@ from mixemy.schemas import InputSchema
 from mixemy.types import (
     OutputSchemaT,
     PermissionAsyncRepositoryT,
-    RepositoryAsyncT,
 )
 from mixemy.utils import to_model, to_schema
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from mixemy.repositories import BaseAsyncRepository
+    from mixemy.schemas import OutputSchema
 
-class BaseAsyncService(
-    Generic[RepositoryAsyncT, OutputSchemaT],
+
+class BaseAsyncService[
+    RepositoryAsyncT: BaseAsyncRepository[BaseModel],
+    OutputSchemaT: OutputSchema,
+](
     ABC,
 ):
     """Base class for asynchronous services.

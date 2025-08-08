@@ -1,6 +1,6 @@
 from abc import ABC
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Generic, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from sqlalchemy import (
     CursorResult,
@@ -32,8 +32,10 @@ from mixemy.utils import unpack_schema
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from mixemy.models import BaseModel
 
-class BaseSyncRepository(Generic[BaseModelT], ABC):
+
+class BaseSyncRepository[BaseModelT: BaseModel](ABC):
     """Base synchronous repository class providing CRUD operations for a given SQLAlchemy model.
 
     Attributes:
@@ -356,7 +358,7 @@ class BaseSyncRepository(Generic[BaseModelT], ABC):
             db_session.flush()
 
         if db_object is not None:
-            instances: Sequence[Any] = (
+            instances: Sequence[object] = (
                 db_object if isinstance(db_object, Sequence) else [db_object]
             )
             if auto_refresh is True or (auto_refresh is None and self.auto_refresh):

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Generic
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
@@ -9,15 +9,18 @@ from mixemy.schemas import InputSchema
 from mixemy.types import (
     OutputSchemaT,
     PermissionSyncRepositoryT,
-    RepositorySyncT,
 )
 from mixemy.utils import to_model, to_schema
 
+if TYPE_CHECKING:
+    from mixemy.repositories import BaseSyncRepository
+    from mixemy.schemas import OutputSchema
 
-class BaseSyncService(
-    Generic[RepositorySyncT, OutputSchemaT],
-    ABC,
-):
+
+class BaseSyncService[
+    RepositorySyncT: BaseSyncRepository[BaseModel],
+    OutputSchemaT: OutputSchema,
+](ABC):
     """Base class for synchronous services.
 
     This class provides a generic implementation for common CRUD operations
