@@ -3,4 +3,4 @@ setup:
 	poetry run pre-commit install
 
 generate-badges:
-	poetry run pytest --cov --local-badge-output-dir badges/
+	poetry run pytest --cov=src/ --local-badge-output-dir badges/
