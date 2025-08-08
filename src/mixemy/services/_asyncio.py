@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 
 
 class BaseAsyncService[
-    RepositoryAsyncT: BaseAsyncRepository[BaseModel],
+    RepositoryAsyncT: BaseAsyncRepository[
+        Any
+    ],  # https://peps.python.org/pep-0695/#explicit-variance
     OutputSchemaT: OutputSchema,
 ](
     ABC,

@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 
 
 class BaseSyncService[
-    RepositorySyncT: BaseSyncRepository[BaseModel],
+    RepositorySyncT: BaseSyncRepository[
+        Any
+    ],  # https://peps.python.org/pep-0695/#explicit-variance
     OutputSchemaT: OutputSchema,
 ](ABC):
     """Base class for synchronous services.
