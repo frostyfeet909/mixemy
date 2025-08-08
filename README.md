@@ -8,8 +8,8 @@
 [![Checked with pyright](https://microsoft.github.io/pyright/img/pyright_badge.svg)](https://microsoft.github.io/pyright/)
 [![Packaged with Poetry](https://img.shields.io/badge/packaging-poetry-cyan.svg)](https://python-poetry.org/)
 
-[![Tests]](./badges/tests.svg)
-[![Coverage]](./badges/coverage.svg)
+![Tests](./badges/tests.svg)
+![Coverage](./badges/coverage.svg)
 
 **Mixemy** is a small library providing a set of mixins for [SQLAlchemy](https://www.sqlalchemy.org/) and [Pydantic](https://docs.pydantic.dev/) to simplify common create/read/update/delete (CRUD) operations, validation, and schema management using a _service and repository_ pattern. **Both synchronous and asynchronous modes** are supported.
 
