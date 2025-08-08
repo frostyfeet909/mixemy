@@ -28,11 +28,12 @@ uuid-utils = "^0.10"
 greenlet = {version = ">=1", optional = true}
 
 [tool.poetry.extras]
+all = ["greenlet"]
 asyncio = ["greenlet"]
 
 [tool.poetry.group.dev.dependencies]
-ruff = "0.11.8"
-pyright = "1.1.340"
+ruff = "0.12.8"
+pyright = "1.1.403"
 pytest = "^8.3.4"
 pre-commit = "^4.0.1"
 testcontainers = "^4.9.0"
