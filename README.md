@@ -247,7 +247,7 @@ Contributions are welcome! Please open an issue or submit a pull request on [Git
 
 ### CI/CD
 
-This project uses GitHub Actions for continuous integration (CI) and continuous deployment (CD). The CI workflow runs tests, linters, and type checkers on every push to the main branch.
+This project uses GitHub Actions for continuous integration (CI) and continuous deployment (CD). The CI workflow runs tests, linters, and type checkers on every push to the main branch. We also use coderaview for code quality analysis.
 
 To run this locally use the following command:
 
